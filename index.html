@@ -1,0 +1,1103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Cycle Time Study Dashboard</title>
+<style>
+:root{
+  --bg:#17181c;--panel:#24262b;--panel2:#34363c;--card:#202227;--text:#f4f4f5;--muted:#b6b8bd;
+  --border:rgba(255,255,255,.18);--accent:#28b8aa;--accent-blue:#0077b6;--accent-teal:#28b8aa;--accent-pink:#d62f8a;--accent-orange:#f59e0b;--accent-yellow:#ffd23f;--accent-lime:#8cc63f;
+  --good:#00a884;--warn:#f59e0b;--danger:#c91f37;--purple:#7c4dff;
+  --shadow:0 10px 30px rgba(0,0,0,.38);--radius:14px
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,Helvetica,sans-serif;background:linear-gradient(135deg,#2b2d33,#17181c 55%,#0f1013);color:var(--text);min-height:100vh;text-align:center}
+header{padding:22px 28px;border-bottom:1px solid rgba(255,255,255,.16);background:rgba(23,24,28,.94);position:sticky;top:0;z-index:20;backdrop-filter:blur(10px)}
+h1,h2,h3{margin:0;line-height:1.2} h1{font-size:1.55rem} h2{font-size:1.15rem;margin-bottom:12px} h3{font-size:1rem;color:var(--accent);margin-bottom:10px}
+.subtle{color:var(--muted);font-size:.9rem;margin-top:6px;line-height:1.4;text-align:center}
+main{width:min(1500px,calc(100% - 32px));margin:20px auto 50px}
+
+.brand-card{display:flex;align-items:center;gap:18px;background:linear-gradient(135deg,#050505,#17181c 58%,#24262b);border:1px solid rgba(255,255,255,.22);border-radius:22px;padding:16px 18px;box-shadow:0 16px 38px rgba(0,0,0,.48);color:#f4f4f5;position:relative;overflow:hidden}
+.brand-card::before{content:"";position:absolute;inset:auto -10% -55% -10%;height:90%;background:radial-gradient(circle at 20% 30%,rgba(214,47,138,.20),transparent 32%),radial-gradient(circle at 55% 25%,rgba(40,184,170,.22),transparent 34%),radial-gradient(circle at 88% 20%,rgba(245,158,11,.18),transparent 30%);pointer-events:none}.brand-card>*{position:relative;z-index:1}
+.brand-card img{width:min(260px,42vw);height:auto;display:block;background:white;border-radius:16px;padding:10px;box-shadow:0 8px 22px rgba(0,0,0,.38)}
+.brand-copy{flex:1;text-align:left}
+.brand-copy h1{color:#f4f4f5;margin:0 0 6px;font-size:clamp(1.45rem,3vw,2.35rem);letter-spacing:.02em;text-shadow:0 2px 12px rgba(0,0,0,.55)}
+.brand-copy .subtle{color:#d8dadd;text-align:left}
+.mpg-stripe{height:7px;border-radius:999px;margin-top:12px;background:linear-gradient(90deg,#c91f37,#f59e0b,#ffd23f,#8cc63f,#00a884,#28b8aa,#0077b6,#d62f8a);box-shadow:0 0 18px rgba(40,184,170,.25)}
+
+.topbar{display:flex;gap:12px;flex-wrap:wrap;align-items:center;justify-content:space-between;margin-top:16px}
+.button-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+button,.file-label{border:1px solid transparent;border-radius:10px;background:linear-gradient(135deg,var(--accent-teal),var(--accent-blue));color:white;padding:10px 13px;font-weight:700;cursor:pointer;transition:.15s;font-size:.9rem}
+button:hover,.file-label:hover{opacity:.9} button:active,.file-label:active{transform:translateY(1px)}
+button.secondary{background:var(--panel2);color:var(--text);border-color:var(--border)} button.good{background:linear-gradient(135deg,var(--good),var(--accent-lime));color:white}
+button.warn{background:linear-gradient(135deg,var(--accent-orange),var(--accent-yellow));color:#2b1700} button.danger{background:linear-gradient(135deg,var(--danger),var(--accent-pink));color:white} button.purple{background:linear-gradient(135deg,var(--accent-blue),var(--purple));color:white}
+button:disabled{opacity:.45;cursor:not-allowed}
+.capture-button-row{display:grid;grid-template-columns:repeat(2,minmax(180px,1fr));gap:14px;margin-top:20px}
+.capture-button-row button{min-height:72px;font-size:1.2rem;border-radius:16px;box-shadow:0 10px 24px rgba(0,0,0,.28);border:2px solid rgba(255,255,255,.18)}
+.info-btn{width:38px;height:38px;border-radius:50%;padding:0;font-size:1.15rem;background:var(--accent);color:#001018;display:inline-flex;align-items:center;justify-content:center}.field-label-line{display:flex;align-items:center;justify-content:center;gap:8px}.field-info-btn{width:24px;height:24px;border-radius:50%;padding:0;font-size:.8rem;background:var(--accent);color:#001018;display:inline-flex;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,.2)}
+.title-line{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.process-option-card{border:1px solid var(--border);border-radius:14px;background:var(--card);padding:12px}
+.checkbox-line{display:flex;align-items:center;justify-content:center;gap:10px;font-weight:700;color:var(--text)}
+.checkbox-line input{width:auto;transform:scale(1.25)}
+.known-speed-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:10px}
+.known-speed-grid .checkbox-line{grid-column:1 / -1}
+.modal-backdrop{position:fixed;inset:0;background:rgba(2,6,23,.72);display:flex;align-items:center;justify-content:center;z-index:1000;padding:18px}
+.modal{width:min(620px,100%);background:var(--panel);border:1px solid var(--border);border-radius:18px;box-shadow:var(--shadow);padding:18px;position:relative;text-align:center}
+.modal-close{position:absolute;right:14px;top:12px;width:34px;height:34px;border-radius:50%;padding:0;background:var(--panel2);color:var(--text);border:1px solid var(--border)}
+.modal p{line-height:1.55;color:var(--text);margin:16px 12px 6px}.modal ul{display:inline-block;text-align:left;line-height:1.55;color:var(--text);margin:10px auto}.modal li{margin:6px 0}.modal .example-table{width:100%;margin-top:12px;border:1px solid var(--border);border-radius:12px;overflow:hidden}.modal .example-table td,.modal .example-table th{text-align:center}
+input,textarea,select{width:100%;border:1px solid var(--border);border-radius:10px;padding:10px 11px;background:var(--card);color:var(--text);outline:none;font-size:.92rem}
+input[type="date"]{color-scheme:dark;position:relative;padding-right:44px}
+input[type="date"]::-webkit-calendar-picker-indicator{opacity:1;cursor:pointer;filter:invert(1) brightness(1.45);border:1px solid rgba(255,255,255,.95);border-radius:7px;padding:4px;background-color:rgba(255,255,255,.10);box-shadow:0 0 0 1px rgba(255,255,255,.18)}
+input[type="date"]::-webkit-calendar-picker-indicator:hover{background-color:rgba(255,255,255,.20);box-shadow:0 0 0 2px rgba(56,189,248,.42)}
+
+textarea{min-height:82px;resize:vertical}
+label{display:block;font-size:.82rem;color:var(--muted);margin:0 0 6px;font-weight:700}
+.grid{display:grid;gap:16px}.cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}.cols-4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.panel,.metric,.capture-card{background:rgba(36,38,43,.92);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow)}
+.panel{padding:16px;margin-bottom:16px;border-top:3px solid rgba(40,184,170,.8)}.metric{padding:15px;min-height:96px}.metric .value{font-size:1.45rem;font-weight:800;margin-top:8px}
+.metric .label{color:var(--muted);font-size:.82rem;font-weight:700}.metric .note{color:var(--muted);font-size:.76rem;margin-top:6px;line-height:1.35}
+.form-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;align-items:end}.span-4{grid-column:span 4}.span-2{grid-column:span 2}.hidden{display:none!important}
+table{width:100%;border-collapse:collapse;overflow:hidden;border-radius:12px} th,td{border-bottom:1px solid var(--border);padding:10px;text-align:center;vertical-align:middle;font-size:.88rem}
+th{background:var(--card);color:var(--accent-teal);position:sticky;top:0;z-index:1} tr:hover td{background:rgba(56,189,248,.05)}td.left,th.left{text-align:left}
+.table-wrap{max-height:470px;overflow:auto;border:1px solid var(--border);border-radius:12px}.chart-wrap{width:100%;min-height:500px;border:1px solid var(--border);border-radius:12px;background:var(--card);padding:10px;overflow:hidden}
+canvas{width:100%;height:500px;display:block}
+.status-pill{display:inline-flex;gap:7px;align-items:center;border:1px solid var(--border);border-radius:999px;padding:6px 10px;background:var(--card);color:var(--muted);font-size:.82rem;font-weight:700}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--muted)}.dot.live{background:var(--good);box-shadow:0 0 12px var(--good)}.dot.cycle{background:var(--accent);box-shadow:0 0 12px var(--accent)}
+.capture-layout{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(360px,.85fr);gap:16px}.capture-card{padding:18px}
+.big-timer{font-size:clamp(2.1rem,5.5vw,4.4rem);font-weight:900;letter-spacing:1px;text-align:center;padding:24px 12px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);margin:12px 0}
+.timer-labels{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.supervisor-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin-top:16px}.small-stat{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;text-align:center;min-height:75px}.small-stat strong{display:block;font-size:1.05rem;margin-top:5px}
+.notice{padding:12px;border:1px solid rgba(40,184,170,.35);border-left:4px solid var(--accent-teal);border-radius:12px;color:#e6fffb;background:rgba(40,184,170,.10);line-height:1.45;font-size:.9rem}
+.file-label input{display:none}.empty{color:var(--muted);padding:18px;text-align:center;border:1px dashed var(--border);border-radius:12px;background:rgba(255,255,255,.02)}
+.autosave-card{display:flex;gap:12px;flex-wrap:wrap;align-items:center;justify-content:space-between;padding:12px;border:1px solid rgba(40,184,170,.38);border-radius:12px;background:linear-gradient(135deg,rgba(0,168,132,.14),rgba(0,119,182,.14));margin-top:12px}
+.mobile-only{display:none!important}
+.mobile-process-cards{display:none}
+.process-card{border:1px solid var(--border);border-left:4px solid var(--accent-teal);border-radius:14px;background:rgba(32,34,39,.92);padding:12px;margin:10px 0;text-align:left;box-shadow:0 8px 18px rgba(0,0,0,.20)}
+.process-card h3{margin:0 0 6px;color:var(--text);font-size:1.05rem}
+.process-card .meta{color:var(--muted);font-size:.82rem;line-height:1.35;margin-bottom:8px}
+.process-card .card-metrics{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}
+.process-card .mini-metric{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.10);border-radius:10px;padding:8px;text-align:center}
+.process-card .mini-metric b{display:block;color:var(--text);font-size:.95rem}
+.process-card .mini-metric span{display:block;color:var(--muted);font-size:.72rem;margin-top:2px}
+.graph-modal{width:min(1180px,calc(100vw - 18px));height:min(92vh,900px);overflow:auto}
+.graph-modal .chart-wrap{min-width:760px;min-height:500px}
+.graph-modal-grid{display:grid;grid-template-columns:1fr;gap:14px;margin-top:14px}
+.mobile-quick-actions{display:none}
+
+@media(max-width:1050px){
+ .cols-4,.cols-2,.form-grid,.capture-layout,.timer-labels,.supervisor-metrics,.known-speed-grid{grid-template-columns:1fr}.span-2,.span-4{grid-column:auto}.capture-button-row{grid-template-columns:1fr}
+ .capture-button-row button{min-height:86px;font-size:1.35rem} header{position:static}.brand-card{flex-direction:row;text-align:left;padding:10px 12px;gap:10px}.brand-copy{text-align:left}.brand-copy .subtle{text-align:left;font-size:.78rem}.brand-card img{width:86px;border-radius:10px;padding:5px}.brand-copy h1{font-size:1.12rem}.mpg-stripe{height:4px;margin-top:8px}
+ .mobile-only{display:inline-flex!important}.desktop-chart-grid{display:none!important}.mobile-process-cards{display:block}.desktop-process-table{display:none!important}.mobile-quick-actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin:10px 0 14px}
+ .metric{min-height:auto}.panel{padding:12px;margin-bottom:12px}.topbar{justify-content:center}.topbar .button-row{justify-content:center}
+ .capture-card h2{font-size:1rem}.timer-main{font-size:2.2rem}.timer-labels .metric:nth-child(n+3){display:none}
+}
+@media(max-width:520px){
+ main{width:calc(100% - 18px);margin:12px auto 36px}header{padding:10px 9px}.brand-card{border-radius:16px}.brand-card img{width:72px}.brand-copy h1{font-size:1rem}.brand-copy .subtle{font-size:.72rem}.button-row{gap:8px}button,.file-label{padding:11px 12px}
+ .process-card .card-metrics{grid-template-columns:1fr 1fr}.graph-modal{width:calc(100vw - 10px);height:94vh;padding:12px}.graph-modal .chart-wrap{min-width:720px}
+}
+@media print{
+ body{background:#fff;color:#000}header,button,.file-label,#processFormPanel,#captureView{display:none!important}main{width:100%;margin:0}.panel,.metric{box-shadow:none;border-color:#aaa;background:#fff;color:#000}
+ th{color:#000;background:#eee}td,th{border-color:#aaa;color:#000}.chart-wrap{background:#fff}
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand-card">
+    <img src="data:image/png;base64,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" alt="Millennium Print Group logo">
+    <div class="brand-copy">
+      <h1>Cycle Time Study Dashboard</h1>
+      <div class="subtle">Create production processes, capture process windows and individual cycles, auto-calculate idle time, and identify bottlenecks.</div>
+      <div class="mpg-stripe" aria-hidden="true"></div>
+    </div>
+  </div>
+  <div class="topbar">
+    <div class="button-row">
+      <button id="dashboardBtn" class="secondary">Dashboard</button>
+      <button id="printBtn" class="secondary">Print / Save PDF</button>
+    </div>
+    <div class="button-row">
+      <button id="exportBtn" class="secondary">Export Study JSON</button>
+      <label class="file-label secondary">Import Study JSON<input id="importInput" type="file" accept=".json,application/json"></label>
+      <button id="clearAllBtn" class="danger">Clear All</button>
+    </div>
+  </div>
+</header>
+
+<main>
+<section id="dashboardView">
+
+  <section class="panel">
+    <h2>Study Information</h2>
+    <div class="subtle">These fields create the browser autosave tag so multiple studies can be saved and loaded clearly from the same browser.</div>
+    <div class="form-grid" style="margin-top:12px">
+      <div><label for="studyTitle">Study Title</label><input id="studyTitle" placeholder="Example: Slitter 24 Cycle Study"></div>
+      <div><label for="studyObserver">Observer</label><input id="studyObserver" placeholder="Example: A. Smith"></div>
+      <div><label for="studyDate">Date</label><input id="studyDate" type="date" title="Use the calendar picker or type a date. Defaults to today for new studies."></div>
+      <div><label for="studyShift">Shift</label><input id="studyShift" placeholder="Example: 1st Shift"></div>
+      <div><label for="studyLocation">Location</label><input id="studyLocation" placeholder="Example: Weck"></div>
+      <div><label for="studyProductionLine">Production Line</label><input id="studyProductionLine" placeholder="Example: Slitter 24"></div>
+      <div class="span-2"><label>Current Autosave Tag</label><div id="currentStudyTag" class="notice">Untitled Study • 0 processes</div></div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Production Metrics</h2>
+    <div class="grid cols-4">
+      <div class="metric"><div class="label">Throughput Estimate</div><div id="throughputMetric" class="value">0 units/hr</div><div class="note">Estimated from bottleneck cycle time and parallel process count.</div></div>
+      <div class="metric"><div class="label">Average Man-Hour Utilization</div><div id="utilizationMetric" class="value">0%</div><div class="note">Completed cycle time ÷ total capture time, weighted by workers.</div></div>
+      <div class="metric"><div class="label">Bottleneck Process</div><div id="bottleneckMetric" class="value">None</div><div class="note">Longest average cycle time, sorted highest to lowest.</div></div>
+      <div class="metric"><div class="label">Total Captured Cycles / Marks</div><div id="cycleCountMetric" class="value">0</div><div class="note">Start/stop cycles plus continuous timestamp marks.</div></div>
+    </div>
+    <div class="supervisor-metrics">
+      <div class="metric"><div class="label">Total Observed Man-Hours</div><div id="observedManHoursMetric" class="value">0.00 hr</div><div class="note">Capture time × workers per process.</div></div>
+      <div class="metric"><div class="label">Idle Man-Hours Lost</div><div id="idleManHoursMetric" class="value">0.00 hr</div><div class="note">Auto downtime × workers per process.</div></div>
+      <div class="metric"><div class="label">Total Downtime</div><div id="totalDowntimeMetric" class="value">00:00:00.0</div><div class="note">Total auto-calculated idle time across capture sessions.</div></div>
+      <div class="metric"><div class="label">Idle Labor Cost Est.</div><div id="idleCostMetric" class="value">$0.00</div><div class="note">Optional calculation using burdened labor rate below.</div></div>
+    </div>
+    <div class="form-grid" style="margin-top:12px">
+      <div>
+        <label for="laborRate">Burdened Labor Rate $/hr</label>
+        <input id="laborRate" type="number" min="0" step="0.01" value="0">
+      </div>
+      <div>
+        <label for="projectionHours">Available Shift / Daily Time</label>
+        <input id="projectionHours" type="number" min="0" step="0.01" placeholder="Example: 7.5">
+      </div>
+      <div>
+        <label for="projectionUnit">Time Unit</label>
+        <select id="projectionUnit">
+          <option value="hours">Hours</option>
+          <option value="minutes">Minutes</option>
+        </select>
+      </div>
+      <div class="span-4">
+        <label>Projection Note</label>
+        <div id="projectionNote" class="notice">Enter available shift or daily production time to project observed downtime, idle labor cost, and estimated production.</div>
+      </div>
+    </div>
+    <div class="supervisor-metrics" style="margin-top:12px">
+      <div class="metric"><div class="label">Projected Production</div><div id="projectedProductionMetric" class="value">0 units</div><div class="note">Bottleneck throughput × available time.</div></div>
+      <div class="metric"><div class="label">Projected Downtime</div><div id="projectedDowntimeMetric" class="value">00:00:00.0</div><div class="note">Observed downtime rate scaled to available time.</div></div>
+      <div class="metric"><div class="label">Projected Idle Man-Hours</div><div id="projectedIdleManHoursMetric" class="value">0.00 hr</div><div class="note">Observed idle man-hours scaled to available time.</div></div>
+      <div class="metric"><div class="label">Projected Idle Labor Cost</div><div id="projectedIdleCostMetric" class="value">$0.00</div><div class="note">Projected idle man-hours × burdened labor rate.</div></div>
+    </div>
+    <div class="autosave-card">
+      <div>
+        <strong>Browser Autosaves</strong>
+        <div id="autosaveInfo" class="subtle">No autosaves found.</div>
+        <select id="autosaveSelect" aria-label="Saved studies"></select>
+      </div>
+      <div class="button-row">
+        <button id="loadAutosaveBtn" class="purple">Load Selected Study</button>
+        <button id="deleteAutosaveBtn" class="danger">Delete Selected Save</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Quick Completion Estimate</h2>
+    <div class="form-grid">
+      <div><label for="targetUnits">Target Units</label><input id="targetUnits" type="number" min="0" step="1" placeholder="Example: 5000"></div>
+      <div><label for="plannedEfficiency">Planned Efficiency %</label><input id="plannedEfficiency" type="number" min="1" max="100" step="1" value="85"></div>
+      <div class="span-2"><label>Estimated Time to Complete</label><div id="completionEstimate" class="notice">Enter a target quantity to estimate completion time from the current bottleneck throughput.</div></div>
+    </div>
+  </section>
+
+  <section class="panel mobile-quick-actions">
+    <button id="openGraphModalBtn" class="purple mobile-only" type="button">View Graphs</button>
+  </section>
+
+  <section class="grid cols-2 desktop-chart-grid">
+    <div class="panel">
+      <h2>Process Cycle Time Chart</h2><div class="subtle">Start/stop processes display as bars on the Process axis. Continuous-flow processes are removed from the Process axis and labeled by name below their blue speed marker lines.</div>
+      <div class="chart-wrap"><canvas id="cycleChart"></canvas></div>
+    </div>
+    <div class="panel">
+      <h2>Downtime per Cycle Chart</h2><div class="subtle">Average downtime per cycle = total auto-calculated downtime ÷ cycle count. Continuous known-speed processes normally show zero downtime unless capture sessions record idle time.</div>
+      <div class="chart-wrap"><canvas id="downtimeChart"></canvas></div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="button-row" style="justify-content:space-between;margin-bottom:12px">
+      <div><h2 style="margin-bottom:0">Process Summary Table</h2><div class="subtle">Add or edit processes here, then resume capture from the process row. Continuous processes remain visible even before speed data or timestamp marks are captured.</div></div>
+      <button id="newProcessBtn" class="good">+ New Process</button>
+    </div>
+
+    <section id="processFormPanel" class="panel hidden" style="margin-top:12px">
+      <h2 id="processFormTitle">New Process</h2>
+      <div class="form-grid">
+        <input id="editingProcessId" type="hidden">
+        <div><label for="processName">Process Name</label><input id="processName" placeholder="Example: Load conveyor"></div>
+        <div><label for="productionLine">Production Line</label><input id="productionLine" placeholder="Example: Line 1"></div>
+        <div>
+          <div class="field-label-line">
+            <label for="workers" style="margin:0;">Workers per Process</label>
+            <button type="button" class="field-info-btn" data-info-topic="workers" title="Workers per process help">i</button>
+          </div>
+          <input id="workers" type="number" min="0" step="0.1" value="1">
+        </div>
+        <div>
+          <div class="field-label-line">
+            <label for="parallelCount" style="margin:0;">Process Count per Production Line</label>
+            <button type="button" class="field-info-btn" data-info-topic="parallelCount" title="Process count help">i</button>
+          </div>
+          <input id="parallelCount" type="number" min="1" step="1" value="1">
+        </div>
+        <div class="span-4"><label for="processDescription">Process Description</label><textarea id="processDescription" placeholder="Describe the work content, station boundary, quality checks, and start/stop trigger points."></textarea></div>
+        <div class="span-4 process-option-card">
+          <label class="checkbox-line" for="isContinuousProcess">
+            <input id="isContinuousProcess" type="checkbox">
+            Continuous machinery / automated flow process
+          </label>
+          <div class="subtle">Use this for non-stop machines or automated flow. You can uncheck this later to reformat the process back to start/stop capture. Changing back to start/stop clears continuous speed marks and known-speed settings for that process.</div>
+        </div>
+        <div id="knownSpeedPanel" class="span-4 process-option-card hidden">
+          <label class="checkbox-line" for="useKnownSpeed">
+            <input id="useKnownSpeed" type="checkbox">
+            Use known machine speed instead of timer-captured interval
+          </label>
+          <div class="known-speed-grid">
+            <div>
+              <label for="knownSpeedQuantity">Quantity</label>
+              <input id="knownSpeedQuantity" type="number" min="0" step="0.0001" placeholder="Example: 1">
+            </div>
+            <div>
+              <label for="knownSpeedTimeValue">Time Value</label>
+              <input id="knownSpeedTimeValue" type="number" min="0" step="0.0001" placeholder="Example: 2.5">
+            </div>
+            <div>
+              <label for="knownSpeedTimeUnit">Time Unit</label>
+              <select id="knownSpeedTimeUnit">
+                <option value="seconds">Seconds</option>
+                <option value="minutes">Minutes</option>
+                <option value="hours">Hours</option>
+              </select>
+            </div>
+          </div>
+          <div class="subtle">Example: 1 unit every 2.5 seconds, 60 units every 1 minute, or 3600 units every 1 hour.</div>
+        </div>
+        <div class="span-4 button-row"><button id="saveProcessBtn" class="good">Save Process</button><button id="cancelProcessBtn" class="secondary">Cancel</button></div>
+      </div>
+    </section>
+
+    <div id="emptyDashboard" class="empty hidden">No processes yet. Add a process to begin collecting cycle time data.</div>
+    <div id="mobileProcessCards" class="mobile-process-cards"></div>
+    <div class="table-wrap desktop-process-table">
+      <table id="processTable">
+        <thead><tr><th class="left">Process</th><th>Process Type</th><th>Status</th><th class="left">Description</th><th>Line</th><th>Throughput Source</th><th>Avg Cycle Time</th><th>Avg Downtime / Cycle</th><th>Workers / Process</th><th>Process Count / Line</th><th>Cycle Count</th><th>Capture Time</th><th>Utilization</th><th>Actions</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+</section>
+
+<section id="captureView" class="hidden">
+  <div class="panel">
+    <div class="button-row" style="justify-content:space-between">
+      <div><h2 id="captureTitle">Cycle Capture</h2><div id="captureSubtitle" class="subtle"></div></div>
+      <div class="button-row"><span id="captureStatus" class="status-pill"><span class="dot"></span>Ready</span><button id="returnDashboardBtn" class="secondary">Return to Dashboard</button></div>
+    </div>
+  </div>
+
+  <div class="capture-layout">
+    <div class="capture-card">
+      <div class="title-line">
+        <h3>Capture Window</h3>
+        <button id="captureInfoBtn" class="info-btn" title="Time capture instructions">i</button>
+      </div>
+      <div class="big-timer" id="captureTimer">00:00:00.0</div>
+      <div class="timer-labels">
+        <div class="small-stat">Current Cycle<strong id="cycleTimer">00:00:00.0</strong></div>
+        <div class="small-stat">Auto Downtime<strong id="autoDowntime">00:00:00.0</strong></div>
+        <div class="small-stat">Completed Cycles<strong id="captureCycleCount">0</strong></div>
+        <div class="small-stat">Avg Cycle<strong id="captureAvgCycle">00:00:00.0</strong></div>
+      </div>
+      <div class="capture-button-row">
+        <button id="toggleCaptureBtn" class="good primary-capture">Start Capture</button>
+        <button id="toggleCycleBtn" class="purple primary-capture">Start Cycle</button>
+      </div>
+      <div class="notice" style="margin-top:16px">
+        Use the information button above for time capture instructions. The timer layout is determined by the process type selected during process creation.
+      </div>
+    </div>
+
+    <div class="capture-card">
+      <h3>Current Session Summary</h3>
+      <div class="grid">
+        <div class="small-stat">Session Start<strong id="sessionStart">—</strong></div>
+        <div class="small-stat">Session Completed Cycle Time<strong id="sessionCycleTime">00:00:00.0</strong></div>
+        <div class="small-stat">Session Auto Downtime<strong id="sessionDowntime">00:00:00.0</strong></div>
+        <div class="small-stat">Session Utilization<strong id="sessionUtilization">0.0%</strong></div>
+      </div>
+    </div>
+  </div>
+
+  <section class="panel">
+    <h2>Capture Sessions for This Process</h2>
+    <div class="table-wrap">
+      <table id="sessionTable"><thead><tr><th>#</th><th>Capture Start</th><th>Capture Stop</th><th>Capture Time</th><th>Completed Cycle Time</th><th>Auto Downtime</th><th>Cycles</th><th>Utilization</th><th>Delete</th></tr></thead><tbody></tbody></table>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Completed Cycles for This Process</h2>
+    <div class="table-wrap">
+      <table id="cycleTable"><thead><tr><th>#</th><th>Start</th><th>Stop</th><th>Total Cycle Time</th><th>Session</th><th>Delete</th></tr></thead><tbody></tbody></table>
+    </div>
+  </section>
+</section>
+</main>
+
+<div id="infoModalBackdrop" class="modal-backdrop hidden">
+  <div class="modal">
+    <button id="infoModalClose" class="modal-close">×</button>
+    <h2 id="infoModalTitle">Information</h2>
+    <div id="infoModalBody"></div>
+  </div>
+</div>
+
+<div id="graphModalBackdrop" class="modal-backdrop hidden">
+  <div class="modal graph-modal">
+    <button id="graphModalClose" class="modal-close">×</button>
+    <h2>Study Graphs</h2>
+    <div class="subtle">Swipe horizontally inside each chart if the phone screen is narrow.</div>
+    <div class="graph-modal-grid">
+      <div>
+        <h3>Process Cycle Time Chart</h3>
+        <div class="chart-wrap"><canvas id="cycleChartModal"></canvas></div>
+      </div>
+      <div>
+        <h3>Downtime per Cycle Chart</h3>
+        <div class="chart-wrap"><canvas id="downtimeChartModal"></canvas></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const STORAGE_KEY="cycleTimeStudyApp.v3";
+const AUTOSAVE_KEY="cycleTimeStudyApp.autosave.latest";
+const AUTOSAVE_INDEX_KEY="cycleTimeStudyApp.autosave.index.v1";
+let state={version:3,studyInfo:{studyId:null,title:"",observer:"",date:todayISODate(),shift:"",location:"",productionLine:""},projection:{availableTimeValue:0,availableTimeUnit:"hours",laborRate:0},processes:[],activeProcessId:null,lastSavedAt:null,processFormDraft:null};
+let live={captureActive:false,cycleActive:false,captureStartMs:null,cycleStartMs:null,sessionCycleSeconds:0,sessionCycleCount:0,sessionCycleIds:[],continuousMarks:[],timerHandle:null};
+const $=id=>document.getElementById(id);
+function uid(){return"id-"+Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,8)}
+function todayISODate(){const d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10)}
+function normalizeState(input){
+ const n=input&&Array.isArray(input.processes)?input:{version:3,processes:[]};
+ n.version=3;
+ const si=n.studyInfo||{};
+ n.studyInfo={
+   studyId:si.studyId||n.studyId||uid(),
+   title:si.title||n.studyTitle||"",
+   observer:si.observer||n.observer||"",
+   date:si.date||n.studyDate||todayISODate(),
+   shift:si.shift||n.shift||"",
+   location:si.location||n.location||"",
+   productionLine:si.productionLine||n.productionLine||""
+ };
+ const pr=n.projection||{};
+ n.projection={
+   availableTimeValue:Number(pr.availableTimeValue??pr.shiftHours??pr.availableHours)||0,
+   availableTimeUnit:pr.availableTimeUnit||"hours",
+   laborRate:Number(pr.laborRate)||0
+ };
+ n.activeProcessId=null;
+ n.processes=n.processes.map(p=>{
+   const hasExplicitMode=p.captureMode==="continuous"||p.captureMode==="startStop";
+   const inferredContinuous = hasExplicitMode
+     ? p.captureMode==="continuous"
+     : (
+       p.isContinuousProcess===true ||
+       p.continuousProcess===true ||
+       p.isContinuous===true ||
+       p.processType==="continuous" ||
+       p.type==="continuous" ||
+       (Array.isArray(p.continuousMarks) && p.continuousMarks.length>0) ||
+       p.useKnownSpeed===true
+     );
+   const captureMode=inferredContinuous?"continuous":"startStop";
+   return {
+     id:p.id||uid(),
+     name:p.name||"Unnamed Process",
+     productionLine:p.productionLine||"",
+     workers:Number(p.workers)||0,
+     parallelCount:Math.max(1,Number(p.parallelCount)||1),
+     description:p.description||"",
+     captureMode,
+     useKnownSpeed:captureMode==="continuous"&&!!p.useKnownSpeed,
+     knownSpeedQuantity:Number(p.knownSpeedQuantity)||0,
+     knownSpeedTimeValue:Number(p.knownSpeedTimeValue)||0,
+     knownSpeedTimeUnit:p.knownSpeedTimeUnit||"seconds",
+     createdAt:p.createdAt||Date.now(),
+     cycles:(p.cycles||[]).map(c=>({
+       id:c.id||uid(),
+       startMs:c.startMs||c.capturedAt||Date.now(),
+       endMs:c.endMs||((c.startMs||Date.now())+((Number(c.cycleSeconds)||0)*1000)),
+       cycleSeconds:Number(c.cycleSeconds)||0,
+       sessionId:c.sessionId||null
+     })),
+     sessions:p.sessions||[],
+     continuousMarks:p.continuousMarks||[]
+   };
+ });
+ n.processFormDraft=n.processFormDraft&&n.processFormDraft.values?{
+   editingProcessId:n.processFormDraft.editingProcessId||"",
+   values:n.processFormDraft.values||{},
+   updatedAt:n.processFormDraft.updatedAt||Date.now()
+ }:null;
+ n.lastSavedAt=n.lastSavedAt||Date.now();
+ return n;
+}
+function loadState(){
+ try{
+   const raw=localStorage.getItem(STORAGE_KEY)||localStorage.getItem(AUTOSAVE_KEY)||localStorage.getItem("cycleTimeStudyApp.v2")||localStorage.getItem("cycleTimeStudyApp.v1");
+   if(raw){
+     const parsed=JSON.parse(raw);
+     state=normalizeState(parsed.state?parsed.state:parsed);
+   }
+ }catch(e){console.error(e)}
+}
+function getAutosaveIndex(){
+ try{
+   const raw=localStorage.getItem(AUTOSAVE_INDEX_KEY);
+   return raw?JSON.parse(raw):{};
+ }catch{return {}}
+}
+function setAutosaveIndex(index){
+ localStorage.setItem(AUTOSAVE_INDEX_KEY,JSON.stringify(index));
+}
+function processCountSummary(st=state){
+ const pc=st.processes?.length||0;
+ const cycles=st.processes?.reduce((s,p)=>s+(p.cycles||[]).length,0)||0;
+ const marks=st.processes?.reduce((s,p)=>s+(p.continuousMarks||[]).length,0)||0;
+ return {pc,cycles,marks};
+}
+function cleanTagValue(v,fallback){const s=String(v||"").trim();return s||fallback}
+function studyTag(st=state){
+ const si=st.studyInfo||{};
+ const parts=[
+   cleanTagValue(si.title,"Untitled Study"),
+   cleanTagValue(si.location,"No location"),
+   cleanTagValue(si.productionLine,"No line"),
+   cleanTagValue(si.shift,"No shift"),
+   cleanTagValue(si.date,"No date")
+ ];
+ const c=processCountSummary(st);
+ return `${parts.join(" • ")} • ${c.pc} process${c.pc===1?"":"es"} • ${c.cycles+c.marks} captures`;
+}
+function shortStudyTag(st=state){
+ const si=st.studyInfo||{};
+ const c=processCountSummary(st);
+ return `${cleanTagValue(si.title,"Untitled Study")} | ${cleanTagValue(si.location,"No location")} | ${cleanTagValue(si.productionLine,"No line")} | ${cleanTagValue(si.shift,"No shift")} | ${cleanTagValue(si.date,"No date")} | ${c.pc} proc / ${c.cycles+c.marks} cap`;
+}
+function saveState(reason="change"){
+ state.version=3;
+ if(!state.studyInfo)state.studyInfo={};
+ if(!state.studyInfo.studyId)state.studyInfo.studyId=uid();
+ state.lastSavedAt=Date.now();
+ const normalized=normalizeState(state);
+ state=normalized;
+ localStorage.setItem(STORAGE_KEY,JSON.stringify(state));
+
+ const summary=processCountSummary(state);
+ const latest={savedAt:state.lastSavedAt,reason,tag:studyTag(state),state};
+ localStorage.setItem(AUTOSAVE_KEY,JSON.stringify(latest));
+
+ const index=getAutosaveIndex();
+ index[state.studyInfo.studyId]={
+   savedAt:state.lastSavedAt,
+   reason,
+   tag:studyTag(state),
+   shortTag:shortStudyTag(state),
+   studyInfo:state.studyInfo,
+   processCount:summary.pc,
+   captureCount:summary.cycles+summary.marks,
+   state
+ };
+ setAutosaveIndex(index);
+ renderAutosaveInfo();
+ if($("currentStudyTag"))$("currentStudyTag").textContent=studyTag(state);
+}
+function getAutosave(){
+ const select=$("autosaveSelect");
+ const selectedId=select?.value;
+ const index=getAutosaveIndex();
+ if(selectedId&&index[selectedId])return index[selectedId];
+ try{
+   const raw=localStorage.getItem(AUTOSAVE_KEY);
+   return raw?JSON.parse(raw):null;
+ }catch{return null}
+}
+function loadAutosave(){
+ const a=getAutosave();
+ if(!a||!a.state){alert("No saved study was selected or found.");return}
+ if(!confirm("Load the selected saved study? This will replace the currently loaded study in this browser."))return;
+ stopCaptureIfRunning(false);
+ state=normalizeState(a.state);
+ saveState("loaded autosave");
+ showDashboard();
+ restoreProcessFormDraftIfAny();
+}
+function deleteSelectedAutosave(){
+ const select=$("autosaveSelect");
+ const id=select?.value;
+ if(!id){alert("No saved study is selected.");return}
+ const index=getAutosaveIndex();
+ if(!index[id]){alert("Selected save was not found.");return}
+ if(!confirm(`Delete this browser autosave?\n\n${index[id].tag||index[id].shortTag||id}`))return;
+ delete index[id];
+ setAutosaveIndex(index);
+ renderAutosaveInfo();
+}
+function renderAutosaveInfo(){
+ const select=$("autosaveSelect");
+ const index=getAutosaveIndex();
+ const entries=Object.entries(index).sort((a,b)=>(b[1].savedAt||0)-(a[1].savedAt||0));
+ if($("currentStudyTag"))$("currentStudyTag").textContent=studyTag(state);
+ if(!select)return;
+ select.innerHTML="";
+ if(!entries.length){
+   $("autosaveInfo").textContent="No browser autosaves found yet.";
+   $("loadAutosaveBtn").disabled=true;
+   if($("deleteAutosaveBtn"))$("deleteAutosaveBtn").disabled=true;
+   return;
+ }
+ for(const [id,item] of entries){
+   const opt=document.createElement("option");
+   opt.value=id;
+   opt.textContent=`${formatDateTime(item.savedAt)} — ${item.shortTag||item.tag||id}`;
+   if(id===state.studyInfo?.studyId)opt.selected=true;
+   select.appendChild(opt);
+ }
+ $("autosaveInfo").textContent=`${entries.length} saved stud${entries.length===1?"y":"ies"} in this browser. Current: ${shortStudyTag(state)}`;
+ $("loadAutosaveBtn").disabled=false;
+ if($("deleteAutosaveBtn"))$("deleteAutosaveBtn").disabled=false;
+}
+function secondsToHMS(seconds,t=true){seconds=Number(seconds)||0;const sign=seconds<0?"-":"";seconds=Math.abs(seconds);const h=Math.floor(seconds/3600),m=Math.floor((seconds%3600)/60),s=Math.floor(seconds%60),d=Math.floor((seconds-Math.floor(seconds))*10);return sign+String(h).padStart(2,"0")+":"+String(m).padStart(2,"0")+":"+String(s).padStart(2,"0")+(t?"."+d:"")}
+function secondsToHuman(seconds){seconds=Number(seconds)||0;if(seconds<=0)return"0 min";const h=seconds/3600;if(h>=24)return(h/24).toFixed(2)+" days";if(h>=1)return h.toFixed(2)+" hr";return(seconds/60).toFixed(1)+" min"}
+function formatDateTime(ms){if(!ms)return"—";return new Date(ms).toLocaleString([], {year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",second:"2-digit"})}
+function activeProcess(){return state.processes.find(p=>p.id===state.activeProcessId)||null}
+function knownSpeedCycleSeconds(p){
+ const qty=Number(p.knownSpeedQuantity)||0;
+ const val=Number(p.knownSpeedTimeValue)||0;
+ if(!p.useKnownSpeed||qty<=0||val<=0)return 0;
+ const unit=p.knownSpeedTimeUnit||"seconds";
+ const multiplier=unit==="hours"?3600:(unit==="minutes"?60:1);
+ return (val*multiplier)/qty;
+}
+function knownSpeedLabel(p){
+ if(!p.useKnownSpeed)return p.captureMode==="continuous"?"Timestamp Capture":"Timer Capture";
+ const qty=Number(p.knownSpeedQuantity)||0;
+ const val=Number(p.knownSpeedTimeValue)||0;
+ if(qty<=0||val<=0)return "Known Speed Incomplete";
+ return `${qty} unit${qty===1?"":"s"} / ${val} ${p.knownSpeedTimeUnit||"seconds"}`;
+}
+function processTypeLabel(p){
+ return p.captureMode==="continuous"?"Continuous Flow":"Start / Stop";
+}
+function processStatusLabel(p,s){
+ if(p.captureMode==="continuous"){
+   if(p.useKnownSpeed && s.knownCycleSeconds>0) return "Ready: Known Speed";
+   if((p.continuousMarks||[]).length>0) return "Ready: Timestamp Marks";
+   return "Visible: Needs Speed Data";
+ }
+ if((p.cycles||[]).length>0) return "Ready: Cycle Data";
+ return "Visible: Needs Cycle Data";
+}
+function processStats(p){
+const cycles=p.cycles||[],sessions=p.sessions||[],marks=p.continuousMarks||[];
+const cycleCount=cycles.length,markCount=marks.length;
+const totalCycleSeconds=cycles.reduce((s,c)=>s+(Number(c.cycleSeconds)||0),0);
+const totalCaptureSeconds=sessions.reduce((s,x)=>s+(Number(x.captureSeconds)||0),0);
+const totalDowntimeSeconds=sessions.reduce((s,x)=>s+(Number(x.downtimeSeconds)||0),0);
+let avgContinuousIntervalSeconds=0;
+if(markCount>1){const sorted=[...marks].sort((a,b)=>a.ms-b.ms);let intervalTotal=0;for(let i=1;i<sorted.length;i++)intervalTotal+=(sorted[i].ms-sorted[i-1].ms)/1000;avgContinuousIntervalSeconds=intervalTotal/(sorted.length-1)}
+const knownCycleSeconds=knownSpeedCycleSeconds(p);
+const effectiveCount=(p.captureMode==="continuous")?markCount:cycleCount;
+const avgCycleSeconds=knownCycleSeconds || ((p.captureMode==="continuous")?avgContinuousIntervalSeconds:(cycleCount?totalCycleSeconds/cycleCount:0));
+const avgDowntimeSeconds=effectiveCount?totalDowntimeSeconds/effectiveCount:0;
+const utilization=totalCaptureSeconds?(p.captureMode==="continuous"?1:(totalCycleSeconds/totalCaptureSeconds)):0;
+const parallelCount=Math.max(1,Number(p.parallelCount)||1);
+const throughputUnitsPerHour=avgCycleSeconds?parallelCount*3600/avgCycleSeconds:0;
+return{cycleCount,markCount,effectiveCount,totalCycleSeconds,totalCaptureSeconds,totalDowntimeSeconds,avgCycleSeconds,avgDowntimeSeconds,utilization,parallelCount,throughputUnitsPerHour,knownCycleSeconds}
+}
+function totalObservedCaptureSeconds(){
+ return state.processes.reduce((sum,p)=>sum+processStats(p).totalCaptureSeconds,0);
+}
+function availableProjectionSeconds(){
+ const pr=state.projection||{};
+ const val=Number(pr.availableTimeValue)||0;
+ if(val<=0)return 0;
+ return (pr.availableTimeUnit||"hours")==="minutes"?val*60:val*3600;
+}
+function projectionStats(){
+ const line=lineThroughputEstimate();
+ const sup=supervisorStats();
+ const targetSeconds=availableProjectionSeconds();
+ const observedSeconds=totalObservedCaptureSeconds();
+ const factor=(targetSeconds>0&&observedSeconds>0)?targetSeconds/observedSeconds:0;
+ const rate=Number(state.projection?.laborRate)||0;
+ return {
+   targetSeconds,
+   observedSeconds,
+   factor,
+   projectedProduction:line.throughput*(targetSeconds/3600),
+   projectedDowntime:sup.totalDowntime*factor,
+   projectedIdleMH:sup.idleMH*factor,
+   projectedIdleCost:sup.idleMH*factor*rate
+ };
+}
+function lineThroughputEstimate(){const d=state.processes.map(p=>({process:p,stats:processStats(p)})).filter(x=>x.stats.avgCycleSeconds>0);if(!d.length)return{throughput:0,bottleneck:null};const b=d.reduce((m,x)=>x.stats.avgCycleSeconds>m.stats.avgCycleSeconds?x:m,d[0]);return{throughput:b.stats.throughputUnitsPerHour,bottleneck:b}}
+function averageManHourUtilization(){let cap=0,cyc=0;state.processes.forEach(p=>{const s=processStats(p),w=Math.max(0,Number(p.workers)||0);cap+=s.totalCaptureSeconds*w;cyc+=p.captureMode==="continuous"?s.totalCaptureSeconds*w:s.totalCycleSeconds*w});return cap?cyc/cap:0}
+function supervisorStats(){let observedMH=0,idleMH=0,totalDowntime=0;state.processes.forEach(p=>{const s=processStats(p),w=Math.max(0,Number(p.workers)||0);observedMH+=(s.totalCaptureSeconds*w)/3600;idleMH+=(s.totalDowntimeSeconds*w)/3600;totalDowntime+=s.totalDowntimeSeconds});return{observedMH,idleMH,totalDowntime}}
+function readStudyInfoForm(){
+ return {
+   studyId:state.studyInfo?.studyId||uid(),
+   title:$("studyTitle")?.value||"",
+   observer:$("studyObserver")?.value||"",
+   date:$("studyDate")?.value||todayISODate(),
+   shift:$("studyShift")?.value||"",
+   location:$("studyLocation")?.value||"",
+   productionLine:$("studyProductionLine")?.value||""
+ };
+}
+function writeStudyInfoForm(){
+ const si=state.studyInfo||{};
+ if($("studyTitle"))$("studyTitle").value=si.title||"";
+ if($("studyObserver"))$("studyObserver").value=si.observer||"";
+ if($("studyDate"))$("studyDate").value=si.date||todayISODate();
+ if($("studyShift"))$("studyShift").value=si.shift||"";
+ if($("studyLocation"))$("studyLocation").value=si.location||"";
+ if($("studyProductionLine"))$("studyProductionLine").value=si.productionLine||"";
+ if($("currentStudyTag"))$("currentStudyTag").textContent=studyTag(state);
+}
+function readProjectionForm(){
+ return {
+   availableTimeValue:Number($("projectionHours")?.value)||0,
+   availableTimeUnit:$("projectionUnit")?.value||"hours",
+   laborRate:Number($("laborRate")?.value)||0
+ };
+}
+function writeProjectionForm(){
+ const pr=state.projection||{};
+ if($("projectionHours"))$("projectionHours").value=pr.availableTimeValue||"";
+ if($("projectionUnit"))$("projectionUnit").value=pr.availableTimeUnit||"hours";
+ if($("laborRate"))$("laborRate").value=pr.laborRate||0;
+}
+function renderStudyInfo(){writeStudyInfoForm();writeProjectionForm()}
+let studyInfoAutosaveTimer=null;
+function queueStudyInfoAutosave(){
+ clearTimeout(studyInfoAutosaveTimer);
+ studyInfoAutosaveTimer=setTimeout(()=>{
+   state.studyInfo=readStudyInfoForm();
+   state.lastSavedAt=Date.now();
+   localStorage.setItem(STORAGE_KEY,JSON.stringify(state));
+   const summary=processCountSummary(state);
+   const index=getAutosaveIndex();
+   if(!state.studyInfo.studyId)state.studyInfo.studyId=uid();
+   index[state.studyInfo.studyId]={savedAt:state.lastSavedAt,reason:"study information autosave",tag:studyTag(state),shortTag:shortStudyTag(state),studyInfo:state.studyInfo,processCount:summary.pc,captureCount:summary.cycles+summary.marks,state};
+   setAutosaveIndex(index);
+   localStorage.setItem(AUTOSAVE_KEY,JSON.stringify({savedAt:state.lastSavedAt,reason:"study information autosave",tag:studyTag(state),state}));
+   renderAutosaveInfo();
+   if($("currentStudyTag"))$("currentStudyTag").textContent=studyTag(state);
+ },300);
+}
+let projectionAutosaveTimer=null;
+function queueProjectionAutosave(){
+ clearTimeout(projectionAutosaveTimer);
+ projectionAutosaveTimer=setTimeout(()=>{
+   state.projection=readProjectionForm();
+   state.lastSavedAt=Date.now();
+   localStorage.setItem(STORAGE_KEY,JSON.stringify(state));
+   const summary=processCountSummary(state);
+   const index=getAutosaveIndex();
+   if(!state.studyInfo.studyId)state.studyInfo.studyId=uid();
+   index[state.studyInfo.studyId]={savedAt:state.lastSavedAt,reason:"projection autosave",tag:studyTag(state),shortTag:shortStudyTag(state),studyInfo:state.studyInfo,processCount:summary.pc,captureCount:summary.cycles+summary.marks,state};
+   setAutosaveIndex(index);
+   localStorage.setItem(AUTOSAVE_KEY,JSON.stringify({savedAt:state.lastSavedAt,reason:"projection autosave",tag:studyTag(state),state}));
+   renderAutosaveInfo();
+   renderMetrics();
+   updateCompletionEstimate();
+ },300);
+}
+function showDashboard(){stopCaptureIfRunning(true);$("dashboardView").classList.remove("hidden");$("captureView").classList.add("hidden");state.activeProcessId=null;saveState("dashboard view");renderDashboard()}
+function showCapture(id){stopCaptureIfRunning(false);state.activeProcessId=id;const p=activeProcess();if(!p)return showDashboard();$("dashboardView").classList.add("hidden");$("captureView").classList.remove("hidden");$("processFormPanel").classList.add("hidden");$("captureTitle").textContent="Cycle Capture: "+p.name;$("captureSubtitle").textContent=`${p.captureMode==="continuous"?"Continuous Flow":"Start / Stop"} • ${p.productionLine||"No line assigned"} • ${p.description||"No description provided"}`;renderCapture();startTimerLoop()}
+function showProcessForm(p=null){$("processFormPanel").classList.remove("hidden");$("processFormTitle").textContent=p?"Edit Process":"New Process";$("editingProcessId").value=p?p.id:"";$("processName").value=p?p.name:"";$("productionLine").value=p?p.productionLine:"";$("workers").value=p?p.workers:1;$("parallelCount").value=p?p.parallelCount:1;$("processDescription").value=p?p.description:"";$("isContinuousProcess").checked=p?(p.captureMode==="continuous"):false;$("useKnownSpeed").checked=p?!!p.useKnownSpeed:false;$("knownSpeedQuantity").value=p&&p.knownSpeedQuantity?p.knownSpeedQuantity:"";$("knownSpeedTimeValue").value=p&&p.knownSpeedTimeValue?p.knownSpeedTimeValue:"";$("knownSpeedTimeUnit").value=p&&p.knownSpeedTimeUnit?p.knownSpeedTimeUnit:"seconds";toggleKnownSpeedPanel();$("processName").focus()}
+function hideProcessForm(){$("processFormPanel").classList.add("hidden")}
+function readProcessFormValues(){
+ const isContinuous=!!$("isContinuousProcess").checked;
+ const useKnown=isContinuous&&!!$("useKnownSpeed").checked;
+ return {
+   name:$("processName").value,
+   productionLine:$("productionLine").value,
+   workers:$("workers").value,
+   parallelCount:$("parallelCount").value,
+   description:$("processDescription").value,
+   captureMode:isContinuous?"continuous":"startStop",
+   useKnownSpeed:useKnown,
+   knownSpeedQuantity:$("knownSpeedQuantity").value,
+   knownSpeedTimeValue:$("knownSpeedTimeValue").value,
+   knownSpeedTimeUnit:$("knownSpeedTimeUnit").value||"seconds"
+ };
+}
+function writeProcessFormValues(values){
+ if(!values)return;
+ $("processName").value=values.name??"";
+ $("productionLine").value=values.productionLine??"";
+ $("workers").value=values.workers??1;
+ $("parallelCount").value=values.parallelCount??1;
+ $("processDescription").value=values.description??"";
+ $("isContinuousProcess").checked=values.captureMode==="continuous";
+ $("useKnownSpeed").checked=!!values.useKnownSpeed;
+ $("knownSpeedQuantity").value=values.knownSpeedQuantity??"";
+ $("knownSpeedTimeValue").value=values.knownSpeedTimeValue??"";
+ $("knownSpeedTimeUnit").value=values.knownSpeedTimeUnit||"seconds";
+ toggleKnownSpeedPanel();
+}
+function saveProcessFormDraft(){
+ if($("processFormPanel").classList.contains("hidden"))return;
+ state.processFormDraft={
+   editingProcessId:$("editingProcessId").value||"",
+   values:readProcessFormValues(),
+   updatedAt:Date.now()
+ };
+ saveState("process form autosave");
+}
+let processFormAutosaveTimer=null;
+function queueProcessFormAutosave(){
+ clearTimeout(processFormAutosaveTimer);
+ processFormAutosaveTimer=setTimeout(saveProcessFormDraft,150);
+}
+function clearProcessFormDraft(){
+ state.processFormDraft=null;
+}
+function restoreProcessFormDraftIfAny(){
+ const draft=state.processFormDraft;
+ if(!draft||!draft.values)return;
+ const existing=draft.editingProcessId?state.processes.find(p=>p.id===draft.editingProcessId):null;
+ if(draft.editingProcessId&&existing)showProcessForm(existing);
+ else showProcessForm(null);
+ $("editingProcessId").value=draft.editingProcessId||"";
+ writeProcessFormValues(draft.values);
+ $("processFormTitle").textContent=draft.editingProcessId?"Recovered Process Edit Draft":"Recovered New Process Draft";
+}
+function saveProcessFromForm(){const id=$("editingProcessId").value,name=$("processName").value.trim();if(!name){alert("Please enter a process name.");return}const isContinuous=!!$("isContinuousProcess").checked;
+const useKnown=isContinuous&&!!$("useKnownSpeed").checked;
+const data={
+  name,
+  productionLine:$("productionLine").value.trim(),
+  workers:Number($("workers").value)||0,
+  parallelCount:Math.max(1,Number($("parallelCount").value)||1),
+  description:$("processDescription").value.trim(),
+  captureMode:isContinuous?"continuous":"startStop",
+  useKnownSpeed:useKnown,
+  knownSpeedQuantity:useKnown?(Number($("knownSpeedQuantity").value)||0):0,
+  knownSpeedTimeValue:useKnown?(Number($("knownSpeedTimeValue").value)||0):0,
+  knownSpeedTimeUnit:$("knownSpeedTimeUnit").value||"seconds"
+};if(id){const p=state.processes.find(x=>x.id===id);if(p){const wasContinuous=p.captureMode==="continuous";Object.assign(p,data);if(wasContinuous&&!isContinuous){p.useKnownSpeed=false;p.knownSpeedQuantity=0;p.knownSpeedTimeValue=0;p.knownSpeedTimeUnit="seconds";p.continuousMarks=[]}}}else state.processes.push({id:uid(),...data,createdAt:Date.now(),cycles:[],sessions:[],continuousMarks:[]});clearProcessFormDraft();saveState("process saved");hideProcessForm();renderDashboard()}
+function cancelProcessForm(){clearProcessFormDraft();saveState("process form cancelled");hideProcessForm()}
+function deleteProcess(id){const p=state.processes.find(x=>x.id===id);if(!p)return;if(!confirm(`Delete process "${p.name}" and all captured cycles/sessions?`))return;state.processes=state.processes.filter(x=>x.id!==id);saveState("process deleted");renderDashboard()}
+function startCapture(){if(live.captureActive)return;live.captureActive=true;live.cycleActive=false;live.captureStartMs=Date.now();live.cycleStartMs=null;live.sessionCycleSeconds=0;live.sessionCycleCount=0;live.sessionCycleIds=[];updateCaptureControls();updateLiveTimer()}
+function stopCaptureIfRunning(fromDashboard){
+if(!live.captureActive){resetLiveState(false);return}
+const p=activeProcess(),stopMs=Date.now();
+if(live.cycleActive&&p&&p.captureMode!=="continuous")closeCurrentCycle(stopMs);
+if(p&&live.captureStartMs){
+ const captureSeconds=Math.max(0,(stopMs-live.captureStartMs)/1000);
+ const completedCycleSeconds=p.captureMode==="continuous"?captureSeconds:live.sessionCycleSeconds;
+ const downtimeSeconds=p.captureMode==="continuous"?0:Math.max(0,captureSeconds-live.sessionCycleSeconds);
+ const sessionId=uid();
+ p.sessions=p.sessions||[];
+ p.sessions.push({id:sessionId,mode:p.captureMode||"startStop",startMs:live.captureStartMs,endMs:stopMs,captureSeconds,completedCycleSeconds,downtimeSeconds,cycleCount:live.sessionCycleCount,cycleIds:[...live.sessionCycleIds],markIds:[...live.continuousMarks],autoStoppedByDashboard:!!fromDashboard});
+ (p.cycles||[]).forEach(c=>{if(live.sessionCycleIds.includes(c.id))c.sessionId=sessionId});
+ (p.continuousMarks||[]).forEach(m=>{if(live.continuousMarks.includes(m.id))m.sessionId=sessionId});
+ const keepActiveId=p.id;
+ saveState(fromDashboard?"capture auto-stopped by dashboard":"capture stopped");
+ if(!fromDashboard)state.activeProcessId=keepActiveId;
+}
+resetLiveState(false);renderCapture();renderDashboard()
+}
+function resetLiveState(stopLoop=false){live.captureActive=false;live.cycleActive=false;live.captureStartMs=null;live.cycleStartMs=null;live.sessionCycleSeconds=0;live.sessionCycleCount=0;live.sessionCycleIds=[];live.continuousMarks=[];if(stopLoop&&live.timerHandle){clearInterval(live.timerHandle);live.timerHandle=null}updateCaptureControls();updateLiveTimer()}
+function toggleCapture(){live.captureActive?stopCaptureIfRunning(false):startCapture()}
+function toggleCycle(){
+const p=activeProcess();if(!p)return;
+if(!live.captureActive)startCapture();
+if((p.captureMode||"startStop")==="continuous"){
+ const markId=uid();p.continuousMarks=p.continuousMarks||[];p.continuousMarks.push({id:markId,ms:Date.now(),sessionId:null});live.continuousMarks.push(markId);live.sessionCycleCount++;saveState("continuous timestamp captured");renderCapture();renderDashboard();updateCaptureControls();updateLiveTimer();return;
+}
+if(!live.cycleActive){live.cycleActive=true;live.cycleStartMs=Date.now()}else{closeCurrentCycle(Date.now());saveState("cycle captured");renderCapture();renderDashboard()}updateCaptureControls();updateLiveTimer()}
+function closeCurrentCycle(stopMs){const p=activeProcess();if(!p||!live.cycleActive||!live.cycleStartMs)return;const cycleSeconds=Math.max(0,(stopMs-live.cycleStartMs)/1000);if(cycleSeconds>0){const cycleId=uid();p.cycles=p.cycles||[];p.cycles.push({id:cycleId,startMs:live.cycleStartMs,endMs:stopMs,cycleSeconds,sessionId:null});live.sessionCycleSeconds+=cycleSeconds;live.sessionCycleCount++;live.sessionCycleIds.push(cycleId)}live.cycleActive=false;live.cycleStartMs=null}
+function deleteCycle(id){const p=activeProcess();if(!p)return;if(!confirm("Delete this cycle? Existing capture session totals will not be recalculated."))return;p.cycles=(p.cycles||[]).filter(c=>c.id!==id);(p.sessions||[]).forEach(s=>{s.cycleIds=(s.cycleIds||[]).filter(x=>x!==id);s.cycleCount=Math.max(0,Number(s.cycleCount||0)-1)});saveState("cycle deleted");renderCapture();renderDashboard()}
+function deleteSession(id){const p=activeProcess();if(!p)return;const s=(p.sessions||[]).find(x=>x.id===id);if(!s)return;if(!confirm("Delete this capture session? This removes the session downtime calculation but keeps individual cycle records."))return;p.sessions=(p.sessions||[]).filter(x=>x.id!==id);saveState("session deleted");renderCapture();renderDashboard()}
+function startTimerLoop(){if(live.timerHandle)clearInterval(live.timerHandle);live.timerHandle=setInterval(updateLiveTimer,100);updateLiveTimer()}
+function updateCaptureControls(){const cap=$("toggleCaptureBtn"),cyc=$("toggleCycleBtn");if(!cap||!cyc)return;const p=activeProcess();const mode=p?(p.captureMode||"startStop"):"startStop";cap.textContent=live.captureActive?"Stop Capture":"Start Capture";cap.className=live.captureActive?"warn primary-capture":"good primary-capture";cyc.disabled=false;if(mode==="continuous"){cyc.textContent=(p&&p.useKnownSpeed)?"Optional Timestamp":"Record Timestamp";cyc.className="purple primary-capture"}else{cyc.textContent=live.cycleActive?"Stop Cycle":"Start Cycle";cyc.className=live.cycleActive?"warn primary-capture":"purple primary-capture"}const dot=$("captureStatus").querySelector(".dot");dot.className="dot";if(live.captureActive&&live.cycleActive){dot.classList.add("cycle");$("captureStatus").lastChild.nodeValue=" Cycle Running"}else if(live.captureActive){dot.classList.add("live");$("captureStatus").lastChild.nodeValue=mode==="continuous"?" Continuous Capture Running":" Capture Running"}else $("captureStatus").lastChild.nodeValue=" Ready"}
+function updateLiveTimer(){if(!$("captureTimer"))return;let cap=0,cur=0,completed=live.sessionCycleSeconds;const p=activeProcess();const mode=p?(p.captureMode||"startStop"):"startStop";if(live.captureActive&&live.captureStartMs){const now=Date.now();cap=(now-live.captureStartMs)/1000;if(mode==="continuous"){completed=cap;cur=0}else if(live.cycleActive&&live.cycleStartMs){cur=(now-live.cycleStartMs)/1000;completed+=cur}}const down=mode==="continuous"?0:Math.max(0,cap-completed),util=cap?completed/cap:0;$("captureTimer").textContent=secondsToHMS(cap);$("cycleTimer").textContent=mode==="continuous"?String(live.sessionCycleCount)+" marks":secondsToHMS(cur);$("autoDowntime").textContent=secondsToHMS(down);$("sessionStart").textContent=live.captureStartMs?formatDateTime(live.captureStartMs):"—";$("sessionCycleTime").textContent=secondsToHMS(completed);$("sessionDowntime").textContent=secondsToHMS(down);$("sessionUtilization").textContent=(util*100).toFixed(1)+"%"}
+function renderDashboard(){renderMetrics();renderProcessTable();renderCharts();updateCompletionEstimate();renderAutosaveInfo();$("emptyDashboard").classList.toggle("hidden",state.processes.length>0)}
+function renderMetrics(){
+ state.projection=readProjectionForm();
+ const line=lineThroughputEstimate(),sup=supervisorStats(),proj=projectionStats();
+ const rate=Number(state.projection?.laborRate)||0;
+ $("throughputMetric").textContent=line.throughput?line.throughput.toFixed(1)+" units/hr":"0 units/hr";
+ $("bottleneckMetric").textContent=line.bottleneck?line.bottleneck.process.name:"None";
+ $("utilizationMetric").textContent=(averageManHourUtilization()*100).toFixed(1)+"%";
+ $("cycleCountMetric").textContent=state.processes.reduce((s,p)=>s+(p.cycles||[]).length+(p.continuousMarks||[]).length,0);
+ $("observedManHoursMetric").textContent=sup.observedMH.toFixed(2)+" hr";
+ $("idleManHoursMetric").textContent=sup.idleMH.toFixed(2)+" hr";
+ $("totalDowntimeMetric").textContent=secondsToHMS(sup.totalDowntime);
+ $("idleCostMetric").textContent="$"+(sup.idleMH*rate).toFixed(2);
+ if($("projectedProductionMetric"))$("projectedProductionMetric").textContent=proj.targetSeconds?proj.projectedProduction.toFixed(0)+" units":"0 units";
+ if($("projectedDowntimeMetric"))$("projectedDowntimeMetric").textContent=proj.factor?secondsToHMS(proj.projectedDowntime):"00:00:00.0";
+ if($("projectedIdleManHoursMetric"))$("projectedIdleManHoursMetric").textContent=proj.factor?proj.projectedIdleMH.toFixed(2)+" hr":"0.00 hr";
+ if($("projectedIdleCostMetric"))$("projectedIdleCostMetric").textContent="$"+(proj.factor?proj.projectedIdleCost:0).toFixed(2);
+ if($("projectionNote")){
+   const target=proj.targetSeconds?secondsToHuman(proj.targetSeconds):"no available time entered";
+   const observed=proj.observedSeconds?secondsToHuman(proj.observedSeconds):"no observed capture time";
+   $("projectionNote").textContent=proj.factor?`Projection scales ${observed} of observed capture time to ${target} of available production time. Projection factor: ${proj.factor.toFixed(2)}×.`:"Enter available shift/daily production time and capture at least one process window to project downtime, idle cost, and production.";
+ }
+}
+function sortedProcessesForDisplay(){
+ return [...state.processes].sort((a,b)=>{
+   const sa=processStats(a),sb=processStats(b);
+   const aHasData=sa.avgCycleSeconds>0?1:0;
+   const bHasData=sb.avgCycleSeconds>0?1:0;
+   if(aHasData!==bHasData) return bHasData-aHasData;
+   if(sb.avgCycleSeconds!==sa.avgCycleSeconds) return sb.avgCycleSeconds-sa.avgCycleSeconds;
+   return (a.createdAt||0)-(b.createdAt||0);
+ });
+}
+function renderProcessTable(){
+ const tb=$("processTable").querySelector("tbody");
+ const cardWrap=$("mobileProcessCards");
+ tb.innerHTML="";
+ if(cardWrap)cardWrap.innerHTML="";
+ const rows=sortedProcessesForDisplay();
+ rows.forEach(p=>{
+   const s=processStats(p),tr=document.createElement("tr");
+   const typeText=processTypeLabel(p);
+   const statusText=processStatusLabel(p,s);
+   const avgText=s.avgCycleSeconds>0?secondsToHMS(s.avgCycleSeconds):"No data yet";
+   tr.innerHTML=`<td class="left"><strong>${escapeHtml(p.name)}</strong></td><td><strong>${typeText}</strong></td><td>${escapeHtml(statusText)}</td><td class="left">${escapeHtml(p.description||"")}</td><td>${escapeHtml(p.productionLine||"")}</td><td>${escapeHtml(knownSpeedLabel(p))}</td><td>${avgText}</td><td>${secondsToHMS(s.avgDowntimeSeconds)}</td><td>${Number(p.workers||0).toFixed(1)}</td><td>${Number(p.parallelCount||1)}</td><td>${s.effectiveCount}</td><td>${secondsToHMS(s.totalCaptureSeconds)}</td><td>${(s.utilization*100).toFixed(1)}%</td><td><div class="button-row" style="justify-content:center"><button class="good" onclick="showCapture('${p.id}')">Resume</button><button class="secondary" onclick="showProcessFormById('${p.id}')">Edit</button><button class="danger" onclick="deleteProcess('${p.id}')">Delete</button></div></td>`;
+   tb.appendChild(tr);
+
+   if(cardWrap){
+     const card=document.createElement("div");
+     card.className="process-card";
+     card.innerHTML=`<h3>${escapeHtml(p.name)}</h3>
+       <div class="meta"><strong>${typeText}</strong> • ${escapeHtml(p.productionLine||"No line")}<br>${escapeHtml(statusText)}${p.description?` • ${escapeHtml(p.description)}`:""}</div>
+       <div class="card-metrics">
+         <div class="mini-metric"><b>${avgText}</b><span>Avg cycle</span></div>
+         <div class="mini-metric"><b>${secondsToHMS(s.avgDowntimeSeconds)}</b><span>Downtime/cycle</span></div>
+         <div class="mini-metric"><b>${s.effectiveCount}</b><span>Cycles / marks</span></div>
+         <div class="mini-metric"><b>${(s.utilization*100).toFixed(1)}%</b><span>Utilization</span></div>
+       </div>
+       <div class="button-row" style="justify-content:center">
+         <button class="good" onclick="showCapture('${p.id}')">Resume Capture</button>
+         <button class="secondary" onclick="showProcessFormById('${p.id}')">Edit</button>
+         <button class="danger" onclick="deleteProcess('${p.id}')">Delete</button>
+       </div>`;
+     cardWrap.appendChild(card);
+   }
+ });
+}
+function renderCapture(){const p=activeProcess();if(!p){$("captureTitle").textContent="No Process Selected";$("captureSubtitle").textContent="Return to the dashboard and select Resume for a process.";return}const s=processStats(p);$("captureCycleCount").textContent=(p.captureMode==="continuous"?s.markCount:s.cycleCount);$("captureAvgCycle").textContent=secondsToHMS(s.avgCycleSeconds);const st=$("sessionTable").querySelector("tbody");st.innerHTML="";(p.sessions||[]).forEach((x,i)=>{const u=x.captureSeconds?(x.completedCycleSeconds||0)/x.captureSeconds:0,tr=document.createElement("tr");tr.innerHTML=`<td>${i+1}</td><td>${formatDateTime(x.startMs)}</td><td>${formatDateTime(x.endMs)}</td><td>${secondsToHMS(x.captureSeconds)}</td><td>${secondsToHMS(x.completedCycleSeconds)}</td><td>${secondsToHMS(x.downtimeSeconds)}</td><td>${x.cycleCount||0}</td><td>${(u*100).toFixed(1)}%</td><td><button class="danger" onclick="deleteSession('${x.id}')">Delete</button></td>`;st.appendChild(tr)});const ct=$("cycleTable").querySelector("tbody");ct.innerHTML="";
+if(p.captureMode==="continuous"){
+ (p.continuousMarks||[]).forEach((m,i)=>{const prev=(p.continuousMarks||[])[i-1];const interval=prev?(m.ms-prev.ms)/1000:0;const tr=document.createElement("tr"),sn=getSessionNumberForMark(p,m.id);tr.innerHTML=`<td>${i+1}</td><td>${formatDateTime(m.ms)}</td><td>Timestamp Mark</td><td>${i===0?"—":secondsToHMS(interval)}</td><td>${sn?"#"+sn:"—"}</td><td><button class="danger" onclick="deleteMark('${m.id}')">Delete</button></td>`;ct.appendChild(tr)})
+}else{
+ (p.cycles||[]).forEach((c,i)=>{const tr=document.createElement("tr"),sn=getSessionNumberForCycle(p,c.id);tr.innerHTML=`<td>${i+1}</td><td>${formatDateTime(c.startMs)}</td><td>${formatDateTime(c.endMs)}</td><td>${secondsToHMS(c.cycleSeconds)}</td><td>${sn?"#"+sn:"—"}</td><td><button class="danger" onclick="deleteCycle('${c.id}')">Delete</button></td>`;ct.appendChild(tr)})
+}
+updateCaptureControls();updateLiveTimer()}
+function getSessionNumberForCycle(p,id){const i=(p.sessions||[]).findIndex(s=>(s.cycleIds||[]).includes(id));return i>=0?i+1:null}
+function getSessionNumberForMark(p,id){const i=(p.sessions||[]).findIndex(s=>(s.markIds||[]).includes(id));return i>=0?i+1:null}
+function deleteMark(id){const p=activeProcess();if(!p)return;if(!confirm("Delete this timestamp mark? Existing capture session totals will not be recalculated."))return;p.continuousMarks=(p.continuousMarks||[]).filter(m=>m.id!==id);(p.sessions||[]).forEach(s=>{s.markIds=(s.markIds||[]).filter(x=>x!==id);s.cycleCount=Math.max(0,Number(s.cycleCount||0)-1)});saveState("timestamp mark deleted");renderCapture();renderDashboard()}
+function renderCharts(){const sorted=[...state.processes].map(p=>({p,s:processStats(p)})).filter(x=>x.s.avgCycleSeconds>0).sort((a,b)=>b.s.avgCycleSeconds-a.s.avgCycleSeconds);if($("cycleChart"))drawBarChart($("cycleChart"),sorted,{title:"Average Cycle Time by Process",valueKey:x=>x.s.avgCycleSeconds,unit:"sec"});if($("downtimeChart"))drawBarChart($("downtimeChart"),sorted,{title:"Average Downtime per Cycle by Process",valueKey:x=>x.s.avgDowntimeSeconds,unit:"sec"});if(!$("graphModalBackdrop")?.classList.contains("hidden"))renderModalCharts(sorted)}
+function renderModalCharts(sorted=[...state.processes].map(p=>({p,s:processStats(p)})).filter(x=>x.s.avgCycleSeconds>0).sort((a,b)=>b.s.avgCycleSeconds-a.s.avgCycleSeconds)){if($("cycleChartModal"))drawBarChart($("cycleChartModal"),sorted,{title:"Average Cycle Time by Process",valueKey:x=>x.s.avgCycleSeconds,unit:"sec"});if($("downtimeChartModal"))drawBarChart($("downtimeChartModal"),sorted,{title:"Average Downtime per Cycle by Process",valueKey:x=>x.s.avgDowntimeSeconds,unit:"sec"})}
+function showGraphModal(){$("graphModalBackdrop").classList.remove("hidden");setTimeout(()=>renderModalCharts(),60)}
+function hideGraphModal(){$("graphModalBackdrop").classList.add("hidden")}
+
+function hexToRgb(hex){hex=String(hex||"").replace("#","");if(hex.length===3)hex=hex.split("").map(x=>x+x).join("");const n=parseInt(hex,16);return{r:(n>>16)&255,g:(n>>8)&255,b:n&255}}
+function rgbToHex(r,g,b){return"#"+[r,g,b].map(v=>Math.max(0,Math.min(255,Math.round(v))).toString(16).padStart(2,"0")).join("")}
+function mixHex(a,b,t){const A=hexToRgb(a),B=hexToRgb(b);return rgbToHex(A.r+(B.r-A.r)*t,A.g+(B.g-A.g)*t,A.b+(B.b-A.b)*t)}
+function rankedProcessColor(rank,total){if(total<=1)return"#c91f37";const t=rank/(total-1);if(t<.5)return mixHex("#c91f37","#f59e0b",t/.5);return mixHex("#f59e0b","#00a884",(t-.5)/.5)}
+function drawBarChart(canvas,data,opt){
+const ctx=canvas.getContext("2d"),dpr=window.devicePixelRatio||1,rect=canvas.getBoundingClientRect();
+canvas.width=Math.max(780,rect.width*dpr);canvas.height=500*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);
+const w=canvas.width/dpr,h=canvas.height/dpr;
+ctx.clearRect(0,0,w,h);ctx.fillStyle="#111214";ctx.fillRect(0,0,w,h);
+
+function fitText(text,maxWidth,font){ctx.font=font;if(ctx.measureText(text).width<=maxWidth)return text;let out=String(text||"");while(out.length>1&&ctx.measureText(out+"…").width>maxWidth)out=out.slice(0,-1);return out+"…"}
+function clamp(v,min,max){return Math.max(min,Math.min(max,v))}
+function rectsOverlap(a,b,pad=4){return !(a.x+a.w+pad<b.x||b.x+b.w+pad<a.x||a.y+a.h+pad<b.y||b.y+b.h+pad<a.y)}
+function reserveLabel(box,boxes){for(const b of boxes){if(rectsOverlap(box,b,4))return false}boxes.push(box);return true}
+function drawSafeText(text,x,y,opts){const font=opts.font||"12px Arial",align=opts.align||"left",fill=opts.fill||"#f4f4f5",maxWidth=opts.maxWidth||9999,fitted=fitText(text,maxWidth,font);ctx.font=font;ctx.textAlign=align;ctx.fillStyle=fill;const m=ctx.measureText(fitted),width=Math.min(m.width,maxWidth),height=opts.height||14;let boxX=x;if(align==="center")boxX=x-width/2;if(align==="right")boxX=x-width;const box={x:boxX,y:y-height+3,w:width,h:height};if(opts.boxes&&!reserveLabel(box,opts.boxes))return false;ctx.fillText(fitted,x,y);return true}
+
+const labelBoxes=[];
+ctx.fillStyle="#f4f4f5";ctx.font="bold 15px Arial";ctx.textAlign="left";
+ctx.fillText(fitText(opt.title,w-28,"bold 15px Arial"),14,24);
+
+if(!data.length){ctx.fillStyle="#b6b8bd";ctx.font="14px Arial";ctx.fillText("No cycle data captured yet.",18,70);return}
+
+const manualData=data.filter(x=>!(x.p&&x.p.captureMode==="continuous"));
+const continuousData=data.filter(x=>x.p&&x.p.captureMode==="continuous");
+const sortedManualForColor=[...manualData].sort((a,b)=>opt.valueKey(b)-opt.valueKey(a));
+const manualColorMap=new Map();
+sortedManualForColor.forEach((x,i)=>manualColorMap.set(x.p.id,rankedProcessColor(i,sortedManualForColor.length)));
+
+const rowData=manualData.length?manualData:[{p:{name:"Continuous flow speed markers"},placeholder:true,s:{}}];
+
+const canvasPad=14,axisTitleGutter=42,processLabelGutter=Math.min(200,Math.max(155,w*0.23));
+const l=axisTitleGutter+processLabelGutter,r=52,legendY=50,topAxisTitleY=82,topTickY=108,t=132,b=170;
+const cw=Math.max(260,w-l-r),ch=Math.max(120,h-t-b);
+const max=Math.max(...data.map(opt.valueKey),1),rh=ch/rowData.length,bh=Math.min(28,rh*.55);
+
+// Legend: single-color ranking
+const legendX=14;
+ctx.textAlign="left";ctx.fillStyle="#b6b8bd";ctx.font="12px Arial";
+ctx.fillStyle="#c91f37";roundRect(ctx,legendX,legendY-8,28,13,6);ctx.fill();
+drawSafeText("Slowest process",legendX+36,legendY+3,{font:"12px Arial",fill:"#b6b8bd",maxWidth:130,boxes:labelBoxes});
+const fastX=legendX+160;
+ctx.fillStyle="#00a884";roundRect(ctx,fastX,legendY-8,28,13,6);ctx.fill();
+drawSafeText("Faster process",fastX+36,legendY+3,{font:"12px Arial",fill:"#b6b8bd",maxWidth:130,boxes:labelBoxes});
+if(continuousData.length){
+ const lineX=fastX+160;ctx.strokeStyle="#28b8aa";ctx.lineWidth=2.5;ctx.beginPath();ctx.moveTo(lineX,legendY-13);ctx.lineTo(lineX,legendY+13);ctx.stroke();
+ ctx.fillStyle="#28b8aa";ctx.beginPath();ctx.arc(lineX,legendY-13,4,0,Math.PI*2);ctx.fill();
+ drawSafeText("Continuous process speed marker",lineX+16,legendY+3,{font:"12px Arial",fill:"#b6b8bd",maxWidth:w-lineX-canvasPad-18,boxes:labelBoxes});
+}
+
+drawSafeText("Time",l+cw/2,topAxisTitleY,{font:"bold 13px Arial",align:"center",fill:"#f4f4f5",maxWidth:100,boxes:labelBoxes});
+
+ctx.save();ctx.translate(18,t+ch/2);ctx.rotate(-Math.PI/2);ctx.textAlign="center";ctx.fillStyle="#f4f4f5";ctx.font="bold 13px Arial";ctx.fillText("Process",0,0);ctx.restore();
+
+ctx.strokeStyle="#55575d";ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(l,t);ctx.lineTo(l,t+ch);ctx.lineTo(l+cw,t+ch);ctx.stroke();
+
+const tickBoxes=[];
+for(let i=0;i<=4;i++){
+ const x=l+cw*i/4,v=max*i/4;
+ ctx.strokeStyle="rgba(255,255,255,.12)";ctx.beginPath();ctx.moveTo(x,t);ctx.lineTo(x,t+ch);ctx.stroke();
+ const tick=fitText(v.toFixed(0)+" "+opt.unit,62,"11px Arial");
+ drawSafeText(tick,clamp(x,canvasPad+28,w-canvasPad-28),topTickY,{font:"11px Arial",align:"center",fill:"#b6b8bd",maxWidth:62,boxes:tickBoxes});
+}
+
+const rowLabelBoxes=[],valueLabelBoxes=[];
+rowData.forEach((x,i)=>{
+ const y=t+i*rh+rh/2;
+ if(x.placeholder){
+   drawSafeText("No start/stop processes",l-12,y+4,{font:"12px Arial",align:"right",fill:"#b6b8bd",maxWidth:processLabelGutter-18,boxes:rowLabelBoxes});
+   return;
+ }
+ const val=opt.valueKey(x),bw=cw*(val/max),label=fitText(x.p.name,processLabelGutter-18,"12px Arial");
+ drawSafeText(label,l-12,y+4,{font:"12px Arial",align:"right",fill:"#f4f4f5",maxWidth:processLabelGutter-18,boxes:rowLabelBoxes});
+
+ ctx.fillStyle=manualColorMap.get(x.p.id)||"#00a884";roundRect(ctx,l,y-bh/2,bw,bh,7);ctx.fill();
+ ctx.strokeStyle="rgba(255,255,255,.22)";ctx.lineWidth=1;roundRect(ctx,l,y-bh/2,bw,bh,7);ctx.stroke();
+
+ const valueText=secondsToHMS(val);ctx.font="bold 12px Arial";const valueWidth=ctx.measureText(valueText).width;
+ let valueX=l+bw+8,align="left";if(valueX+valueWidth>w-canvasPad){valueX=Math.max(l+4,l+bw-valueWidth-8);align="left"}
+ const ok=drawSafeText(valueText,valueX,y+4,{font:"bold 12px Arial",align,fill:"#f4f4f5",maxWidth:Math.min(90,w-canvasPad-valueX),boxes:valueLabelBoxes});
+ if(!ok&&bw>70){drawSafeText(valueText,l+bw-8,y+4,{font:"bold 12px Arial",align:"right",fill:"#111214",maxWidth:bw-12,boxes:valueLabelBoxes})}
+});
+
+const continuousLabels=[];
+continuousData.forEach((x)=>{
+ const val=opt.valueKey(x),xPos=clamp(l+cw*(val/max),l,l+cw);
+ ctx.strokeStyle="#28b8aa";ctx.lineWidth=2.5;ctx.beginPath();ctx.moveTo(xPos,t);ctx.lineTo(xPos,t+ch);ctx.stroke();
+ ctx.fillStyle="#28b8aa";ctx.beginPath();ctx.arc(xPos,t+8,5,0,Math.PI*2);ctx.fill();
+ continuousLabels.push({x:xPos,process:x.p.name});
+});
+
+continuousLabels.sort((a,b)=>a.x-b.x);
+const angledBoxes=[];
+continuousLabels.forEach((m,idx)=>{
+ const labelFont="bold 11px Arial";let name=fitText(m.process,104,labelFont);ctx.font=labelFont;
+ const textW=ctx.measureText(name).width,approxW=textW*.75,approxH=Math.max(18,textW*.55);
+ let baseY=t+ch+22,baseX=clamp(m.x+8,l+4,w-canvasPad-approxW-8),placedOk=false;
+ const yOptions=[0,24,48,72,96],xOffsets=[8,-34,42,-66,70];
+ for(const yOff of yOptions){for(const xOff of xOffsets){
+   baseY=clamp(t+ch+22+yOff,t+ch+18,h-62);baseX=clamp(m.x+xOff,l+4,w-canvasPad-approxW-8);
+   const box={x:baseX,y:baseY,w:approxW,h:approxH};
+   if(angledBoxes.every(b=>!rectsOverlap(box,b,7))){angledBoxes.push(box);placedOk=true;break}
+ } if(placedOk)break}
+ if(!placedOk){name=fitText(m.process,70,labelFont);ctx.font=labelFont;const shorterW=ctx.measureText(name).width*.75;baseY=clamp(t+ch+22+(idx%4)*26,t+ch+18,h-62);baseX=clamp(m.x+8,l+4,w-canvasPad-shorterW-8);angledBoxes.push({x:baseX,y:baseY,w:shorterW,h:Math.max(18,shorterW*.72)})}
+ ctx.strokeStyle="rgba(40,184,170,.85)";ctx.lineWidth=1.2;ctx.beginPath();ctx.moveTo(m.x,t+ch);ctx.lineTo(m.x,baseY-7);ctx.lineTo(baseX,baseY);ctx.stroke();
+ ctx.save();ctx.translate(baseX+2,baseY+2);ctx.rotate(Math.PI/4);ctx.textAlign="left";ctx.fillStyle="#28b8aa";ctx.font=labelFont;ctx.fillText(name,0,0);ctx.restore();
+});
+}
+function roundRect(ctx,x,y,w,h,r){const rad=Math.min(r,h/2,Math.max(0,w/2));ctx.beginPath();ctx.moveTo(x+rad,y);ctx.lineTo(x+w-rad,y);ctx.quadraticCurveTo(x+w,y,x+w,y+rad);ctx.lineTo(x+w,y+h-rad);ctx.quadraticCurveTo(x+w,y+h,x+w-rad,y+h);ctx.lineTo(x+rad,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-rad);ctx.lineTo(x,y+rad);ctx.quadraticCurveTo(x,y,x+rad,y);ctx.closePath()}
+function updateCompletionEstimate(){const units=Number($("targetUnits").value)||0,eff=Math.min(100,Math.max(1,Number($("plannedEfficiency").value)||100))/100,line=lineThroughputEstimate(),adj=line.throughput*eff,avail=availableProjectionSeconds();if(!units||!adj){$("completionEstimate").innerHTML="Enter a target quantity to estimate completion time from the current bottleneck throughput.";return}const sec=units/adj*3600;const within=avail?` Available time entered: <b>${secondsToHuman(avail)}</b>, projected capacity at planned efficiency: <b>${(adj*avail/3600).toFixed(0)} units</b>.`:"";$("completionEstimate").innerHTML=`<b>${secondsToHuman(sec)}</b> estimated for <b>${units.toLocaleString()}</b> units at <b>${(eff*100).toFixed(0)}%</b> planned efficiency. Adjusted throughput: <b>${adj.toFixed(1)} units/hr</b>.${within}`}
+function exportStudy(){stopCaptureIfRunning(false);const blob=new Blob([JSON.stringify(state,null,2)],{type:"application/json"}),a=document.createElement("a"),stamp=new Date().toISOString().replace(/[:.]/g,"-"),si=state.studyInfo||{},safe=(si.title||"cycle-time-study").replace(/[^a-z0-9]+/gi,"-").replace(/^-|-$/g,"").toLowerCase();a.href=URL.createObjectURL(blob);a.download=`${safe||"cycle-time-study"}-${stamp}.json`;a.click();URL.revokeObjectURL(a.href)}
+function importStudy(file){const reader=new FileReader();reader.onload=()=>{try{const imported=normalizeState(JSON.parse(reader.result));stopCaptureIfRunning(false);state=imported;saveState("imported study");showDashboard()}catch(e){alert("Could not import this file. Please select a valid exported study JSON.")}};reader.readAsText(file)}
+function clearAll(){if(!confirm("Clear all processes and cycle captures from this browser? This creates a new blank current study but does not delete saved browser autosaves."))return;stopCaptureIfRunning(false);state={version:3,studyInfo:{studyId:uid(),title:"",observer:"",date:todayISODate(),shift:"",location:"",productionLine:""},projection:{availableTimeValue:0,availableTimeUnit:"hours",laborRate:0},processes:[],activeProcessId:null,lastSavedAt:Date.now(),processFormDraft:null};saveState("clear all");showDashboard()}
+function showProcessFormById(id){const p=state.processes.find(x=>x.id===id);if(p)showProcessForm(p)}
+function escapeHtml(v){return String(v??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;")}
+function toggleKnownSpeedPanel(){
+ const isContinuous=$("isContinuousProcess")?.checked;
+ const panel=$("knownSpeedPanel");
+ if(panel) panel.classList.toggle("hidden",!isContinuous);
+ if(!isContinuous){
+   if($("useKnownSpeed")) $("useKnownSpeed").checked=false;
+   if($("knownSpeedQuantity")) $("knownSpeedQuantity").value="";
+   if($("knownSpeedTimeValue")) $("knownSpeedTimeValue").value="";
+   if($("knownSpeedTimeUnit")) $("knownSpeedTimeUnit").value="seconds";
+ }
+}
+function infoContent(topic){
+ if(topic==="workers"){
+   return {
+     title:"Workers per Process",
+     body:`<p>This field represents the direct labor assigned to the process while it is being observed.</p>
+     <ul>
+       <li>Use <b>1</b> for one dedicated operator.</li>
+       <li>Use <b>2</b> for a two-person operation.</li>
+       <li>Use <b>0</b> for unattended equipment with no dedicated operator.</li>
+       <li>Use decimals for shared coverage, such as <b>0.25</b> when one operator watches four machines.</li>
+     </ul>
+     <p>This value affects labor calculations such as observed man-hours, idle man-hours lost, and labor utilization. It does not reduce the machine throughput calculation.</p>
+     <table class="example-table">
+       <tr><th>Situation</th><th>Entry</th></tr>
+       <tr><td>Manual station, one operator</td><td>1</td></tr>
+       <tr><td>Two-person manual process</td><td>2</td></tr>
+       <tr><td>Fully unattended machine</td><td>0</td></tr>
+       <tr><td>One operator covers four machines</td><td>0.25</td></tr>
+     </table>`
+   };
+ }
+ if(topic==="parallelCount"){
+   return {
+     title:"Process Count per Production Line",
+     body:`<p>This field represents how many identical process paths are running in parallel on the same production line.</p>
+     <ul>
+       <li>For manual work, use this when multiple people or stations do the same operation in parallel.</li>
+       <li>For continuous equipment, treat this as parallel machines or independent lanes.</li>
+       <li>Use <b>1</b> when the entered machine speed already represents total line output.</li>
+       <li>Use a value greater than <b>1</b> only when the entered speed is per machine, per lane, or per parallel process.</li>
+     </ul>
+     <p>This value affects throughput estimates. It should not be used to count workers unless those workers are truly separate parallel process paths.</p>
+     <table class="example-table">
+       <tr><th>Situation</th><th>Entry</th></tr>
+       <tr><td>One machine feeding the line</td><td>1</td></tr>
+       <tr><td>Two identical machines feeding the same flow</td><td>2</td></tr>
+       <tr><td>Four independent lanes, speed entered per lane</td><td>4</td></tr>
+       <tr><td>Four-lane machine, speed entered as total output</td><td>1</td></tr>
+     </table>`
+   };
+ }
+ return {
+   title:"Time Capture Instructions",
+   body:`<p>Press Start Capture when the process study window begins, or press Start Cycle directly and capture will start automatically. Use Start Cycle and Stop Cycle for each repeated process cycle. Downtime is calculated automatically as capture window time minus completed cycle time. Returning to the dashboard or selecting Stop Capture automatically stops any active capture window.</p>`
+ };
+}
+function showInfoModal(topic="timeCapture"){
+ const content=infoContent(topic);
+ $("infoModalTitle").innerHTML=content.title;
+ $("infoModalBody").innerHTML=content.body;
+ $("infoModalBackdrop").classList.remove("hidden");
+}
+function hideInfoModal(){$("infoModalBackdrop").classList.add("hidden")}
+function bindEvents(){$("dashboardBtn").addEventListener("click",showDashboard);$("returnDashboardBtn").addEventListener("click",showDashboard);$("newProcessBtn").addEventListener("click",()=>showProcessForm());$("saveProcessBtn").addEventListener("click",saveProcessFromForm);$("cancelProcessBtn").addEventListener("click",cancelProcessForm);$("toggleCaptureBtn").addEventListener("click",toggleCapture);$("toggleCycleBtn").addEventListener("click",toggleCycle);$("targetUnits").addEventListener("input",updateCompletionEstimate);$("plannedEfficiency").addEventListener("input",updateCompletionEstimate);["laborRate","projectionHours","projectionUnit"].forEach(id=>{const el=$(id);if(el){el.addEventListener("input",()=>{state.projection=readProjectionForm();renderMetrics();queueProjectionAutosave()});el.addEventListener("change",()=>{state.projection=readProjectionForm();renderMetrics();queueProjectionAutosave()})}});["studyTitle","studyObserver","studyDate","studyShift","studyLocation","studyProductionLine"].forEach(id=>{const el=$(id);if(el){el.addEventListener("input",queueStudyInfoAutosave);el.addEventListener("change",queueStudyInfoAutosave)}});$("exportBtn").addEventListener("click",exportStudy);$("loadAutosaveBtn").addEventListener("click",loadAutosave);$("deleteAutosaveBtn").addEventListener("click",deleteSelectedAutosave);$("captureInfoBtn").addEventListener("click",()=>showInfoModal("timeCapture"));$("infoModalClose").addEventListener("click",hideInfoModal);$("infoModalBackdrop").addEventListener("click",e=>{if(e.target.id==="infoModalBackdrop")hideInfoModal()});if($("openGraphModalBtn"))$("openGraphModalBtn").addEventListener("click",showGraphModal);if($("graphModalClose"))$("graphModalClose").addEventListener("click",hideGraphModal);if($("graphModalBackdrop"))$("graphModalBackdrop").addEventListener("click",e=>{if(e.target.id==="graphModalBackdrop")hideGraphModal()});$("isContinuousProcess").addEventListener("change",()=>{toggleKnownSpeedPanel();queueProcessFormAutosave()});["processName","productionLine","workers","parallelCount","processDescription","useKnownSpeed","knownSpeedQuantity","knownSpeedTimeValue","knownSpeedTimeUnit"].forEach(id=>{const el=$(id);if(el){el.addEventListener("input",queueProcessFormAutosave);el.addEventListener("change",queueProcessFormAutosave)}});document.querySelectorAll(".field-info-btn").forEach(btn=>btn.addEventListener("click",e=>showInfoModal(e.currentTarget.dataset.infoTopic)));$("importInput").addEventListener("change",e=>{const f=e.target.files&&e.target.files[0];if(f)importStudy(f);e.target.value=""});$("clearAllBtn").addEventListener("click",clearAll);$("printBtn").addEventListener("click",()=>{stopCaptureIfRunning(false);window.print()});window.addEventListener("resize",renderCharts);window.addEventListener("beforeunload",()=>{stopCaptureIfRunning(false);saveState("page unload")})}
+window.showCapture=showCapture;window.showProcessFormById=showProcessFormById;window.deleteProcess=deleteProcess;window.deleteCycle=deleteCycle;window.deleteSession=deleteSession;window.deleteMark=deleteMark;
+loadState();bindEvents();renderStudyInfo();renderDashboard();restoreProcessFormDraftIfAny();
+</script>
+</body>
+</html>
