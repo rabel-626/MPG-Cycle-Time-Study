@@ -41,17 +41,16 @@
 <section id="captureView" class="tab-panel"><section class="box white-border"><div class="box-header"><h2 id="captureTitle">Cycle Capture</h2><span class="box-tag">Live Capture</span></div><div id="captureSubtitle" class="small-note"></div><div class="button-row" style="margin-top:14px"><span id="captureStatus" class="status-pill"><span class="dot"></span>Ready</span><button id="returnDashboardBtn">Return to Dashboard</button></div></section><div class="capture-layout"><div class="box"><h3>Capture Window</h3><div class="big-timer" id="captureTimer">00:00:00.0</div><div class="timer-labels"><div class="small-stat">Current Cycle<strong id="cycleTimer">00:00:00.0</strong></div><div class="small-stat">Auto Downtime<strong id="autoDowntime">00:00:00.0</strong></div><div class="small-stat">Completed Cycles<strong id="captureCycleCount">0</strong></div><div class="small-stat">Avg Cycle<strong id="captureAvgCycle">00:00:00.0</strong></div></div><div class="button-row" style="margin-top:18px"><button id="toggleCaptureBtn" class="good">Start Capture</button><button id="toggleCycleBtn" class="purple" disabled>Start Cycle</button></div><div class="notice" style="margin-top:16px;margin-bottom:0">Press <b>Start Capture</b> when the process study begins. Use <b>Start Cycle</b> and <b>Stop Cycle</b> for each repeated process cycle.</div></div><div class="box"><h3>Current Session Summary</h3><div class="grid"><div class="small-stat">Session Start<strong id="sessionStart">—</strong></div><div class="small-stat">Session Completed Cycle Time<strong id="sessionCycleTime">00:00:00.0</strong></div><div class="small-stat">Session Auto Downtime<strong id="sessionDowntime">00:00:00.0</strong></div><div class="small-stat">Session Utilization<strong id="sessionUtilization">0.0%</strong></div></div></div></div><section class="box"><div class="box-header"><h2>Capture Sessions</h2></div><div class="table-scroll drag-scroll-area"><table id="sessionTable"><thead><tr><th>#</th><th>Capture Start</th><th>Capture Stop</th><th>Capture Time</th><th>Completed Cycle Time</th><th>Auto Downtime</th><th>Cycles</th><th>Utilization</th><th>Delete</th></tr></thead><tbody></tbody></table></div></section><section class="box"><div class="box-header"><h2>Completed Cycles</h2></div><div class="table-scroll drag-scroll-area"><table id="cycleTable"><thead><tr><th>#</th><th>Start</th><th>Stop</th><th>Total Cycle Time</th><th>Session</th><th>Delete</th></tr></thead><tbody></tbody></table></div></section></section>
 </main></div>
 <script>
-const STORAGE_KEY="cycleTimeStudyApp.v6";const LEGACY_STORAGE_KEYS=["cycleTimeStudyApp.v5","cycleTimeStudyApp.v4","cycleTimeStudyApp.v3","cycleTimeStudyApp.v2","cycleTimeStudyApp.v1"];const AUTOSAVE_KEY="cycleTimeStudyApp.autosave.latest";let state={version:6,studyInfo:{},processes:[],activeProcessId:null,lastSavedAt:null};let live={captureActive:false,cycleActive:false,captureStartMs:null,cycleStartMs:null,sessionCycleSeconds:0,sessionCycleCount:0,sessionCycleIds:[],timerHandle:null};let processSaveInProgress=false;const $=id=>document.getElementById(id);
+const STORAGE_KEY="cycleTimeStudyApp.v6";const LEGACY_STORAGE_KEYS=["cycleTimeStudyApp.v5","cycleTimeStudyApp.v4","cycleTimeStudyApp.v3","cycleTimeStudyApp.v2","cycleTimeStudyApp.v1"];const AUTOSAVE_KEY="cycleTimeStudyApp.autosave.latest";let state={version:6,studyInfo:{},processes:[],activeProcessId:null,lastSavedAt:null};let live={captureActive:false,cycleActive:false,captureStartMs:null,cycleStartMs:null,sessionCycleSeconds:0,sessionCycleCount:0,sessionCycleIds:[],timerHandle:null};const $=id=>document.getElementById(id);
 function uid(){return"id-"+Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,8)}
 function normalizeProcessName(value){return String(value||"").trim().replace(/\s+/g," ").toUpperCase()}
 function isAutomatedProcess(p){return (p?.processType||"manual")==="automated"}
 function timeUnitMultiplier(unit){return unit==="hours"?3600:unit==="minutes"?60:1}
 function automatedCycleSeconds(p){const units=Number(p?.autoUnits)||0,time=Number(p?.autoTimeValue)||0,unit=p?.autoTimeUnit||"minutes";return units>0&&time>0?(time*timeUnitMultiplier(unit))/units:0}
 function migrateProcess(p){p=p||{};p.cycles=p.cycles||[];p.sessions=p.sessions||[];const processType=p.processType==="automated"?"automated":"manual";p.cycles=p.cycles.map(c=>({id:c.id||uid(),startMs:c.startMs||c.capturedAt||Date.now(),endMs:c.endMs||((c.startMs||Date.now())+((Number(c.cycleSeconds)||0)*1000)),cycleSeconds:Number(c.cycleSeconds)||0,sessionId:c.sessionId||null}));return{id:p.id||uid(),name:normalizeProcessName(p.name||"UNNAMED PROCESS"),processType,productionLine:p.productionLine||"",workers:Number(p.workers)||0,parallelCount:Math.max(1,Number(p.parallelCount)||1),description:p.description||"",autoUnits:Number(p.autoUnits)||0,autoTimeValue:Number(p.autoTimeValue)||0,autoTimeUnit:p.autoTimeUnit||"minutes",createdAt:p.createdAt||Date.now(),cycles:p.cycles,sessions:p.sessions}}
-function dedupeProcessesByName(processes){const byName=new Map();(processes||[]).forEach(proc=>{const p=migrateProcess(proc),key=normalizeProcessName(p.name);if(!key)return;p.name=key;if(!p.id)p.id=uid();if(!byName.has(key)){byName.set(key,p);return}const keep=byName.get(key);keep.cycles=[...(keep.cycles||[]),...(p.cycles||[])];keep.sessions=[...(keep.sessions||[]),...(p.sessions||[])];if(!(keep.description||"").trim()&&p.description)keep.description=p.description;if((Number(keep.workers)||0)<=0&&Number(p.workers)>0)keep.workers=Number(p.workers);if((Number(keep.parallelCount)||1)<=1&&Number(p.parallelCount)>1)keep.parallelCount=Number(p.parallelCount);if(isAutomatedProcess(p)&&!isAutomatedProcess(keep))keep.processType="automated";if(isAutomatedProcess(keep)){if((Number(keep.autoUnits)||0)<=0&&Number(p.autoUnits)>0)keep.autoUnits=Number(p.autoUnits);if((Number(keep.autoTimeValue)||0)<=0&&Number(p.autoTimeValue)>0)keep.autoTimeValue=Number(p.autoTimeValue);if(p.autoTimeUnit)keep.autoTimeUnit=p.autoTimeUnit}});return Array.from(byName.values())}
-function normalizeState(input){const n=input&&Array.isArray(input.processes)?input:{version:6,studyInfo:{},processes:[],activeProcessId:null};n.version=6;n.studyInfo=n.studyInfo||{};n.activeProcessId=null;n.processes=dedupeProcessesByName(n.processes);n.lastSavedAt=n.lastSavedAt||Date.now();return n}
+function normalizeState(input){const n=input&&Array.isArray(input.processes)?input:{version:6,studyInfo:{},processes:[],activeProcessId:null};n.version=6;n.studyInfo=n.studyInfo||{};n.activeProcessId=null;n.processes=n.processes.map(migrateProcess);n.lastSavedAt=n.lastSavedAt||Date.now();return n}
 function loadState(){try{let raw=localStorage.getItem(STORAGE_KEY);if(!raw){for(const k of LEGACY_STORAGE_KEYS){raw=localStorage.getItem(k);if(raw)break}}if(raw)state=normalizeState(JSON.parse(raw))}catch(e){console.error(e)}}
-function saveState(reason="change"){state.version=6;state.processes=dedupeProcessesByName(state.processes);state.lastSavedAt=Date.now();localStorage.setItem(STORAGE_KEY,JSON.stringify(state));localStorage.setItem(AUTOSAVE_KEY,JSON.stringify({savedAt:state.lastSavedAt,reason,state}));renderAutosaveInfo();renderStudyInfoBanner()}
+function saveState(reason="change"){state.version=6;state.lastSavedAt=Date.now();localStorage.setItem(STORAGE_KEY,JSON.stringify(state));localStorage.setItem(AUTOSAVE_KEY,JSON.stringify({savedAt:state.lastSavedAt,reason,state}));renderAutosaveInfo();renderStudyInfoBanner()}
 function getAutosave(){try{const raw=localStorage.getItem(AUTOSAVE_KEY);return raw?JSON.parse(raw):null}catch{return null}}
 function loadAutosave(){const a=getAutosave();if(!a||!a.state){alert("No autosave was found.");return}if(!confirm("Load the most recent autosave? This will replace the currently loaded study in this browser."))return;stopCaptureIfRunning(false);state=normalizeState(a.state);saveState("loaded autosave");populateStudyInfoForm();showTab("dashboardView");renderDashboard()}
 function renderAutosaveInfo(){const el=$("autosaveInfo"),btn=$("loadAutosaveBtn");if(!el||!btn)return;const a=getAutosave();if(!a||!a.savedAt){el.textContent="No autosave found.";btn.disabled=true;return}const pc=a.state?.processes?.length||0;const cc=(a.state?.processes||[]).reduce((s,p)=>s+((p.cycles||[]).length),0);el.textContent=`${formatDateTime(a.savedAt)} • ${pc} processes • ${cc} cycles`;btn.disabled=false}
@@ -69,58 +68,15 @@ function setProcessTypeUI(){const isAuto=$("processType")?.value==="automated";$
 function updateAutoCyclePreview(){const el=$("autoCyclePreview");if(!el)return;const sec=automatedCycleSeconds({autoUnits:$("autoUnits").value,autoTimeValue:$("autoTimeValue").value,autoTimeUnit:$("autoTimeUnit").value});el.textContent=sec>0?`${secondsToHMS(sec)} per unit • ${(3600/sec).toFixed(1)} units/hr before process count`:"Enter units and time to calculate."}
 function showProcessForm(p=null){showTab("processEntryView");$("processFormTitle").textContent="Add / Edit Process";$("editingProcessId").value=p?p.id:"";$("processType").value=p?.processType||"manual";$("processName").value=p?normalizeProcessName(p.name):"";$("workers").value=p?p.workers:1;$("parallelCount").value=p?p.parallelCount:1;$("processDescription").value=p?p.description:"";$("autoUnits").value=p?.autoUnits||"";$("autoTimeValue").value=p?.autoTimeValue||"";$("autoTimeUnit").value=p?.autoTimeUnit||"minutes";populateProcessSelect(p?p.id:"");setProcessTypeUI()}
 function hideProcessForm(){stopCaptureIfRunning(false);$("processFormTitle").textContent="Add / Edit Process";$("editingProcessId").value="";$("processType").value="manual";$("processName").value="";$("workers").value=1;$("parallelCount").value=1;$("processDescription").value="";$("autoUnits").value="";$("autoTimeValue").value="";$("autoTimeUnit").value="minutes";populateProcessSelect("");setProcessTypeUI()}
-function populateProcessSelect(selectedId=""){const sel=$("processSelect");if(!sel)return"";const current=selectedId||"";const processes=state.processes.slice().sort((a,b)=>a.name.localeCompare(b.name));sel.innerHTML='<option value="">New Process</option>'+processes.map(p=>`<option value="${p.id}">${escapeHtml(p.name)} • ${isAutomatedProcess(p)?"AUTOMATED":"MANUAL"}</option>`).join("");sel.value=state.processes.some(p=>p.id===current)?current:"";return sel.value}
+function populateProcessSelect(selectedId=""){const sel=$("processSelect");if(!sel)return"";const selected=selectedId||"";const current=selected||sel.value||$("editingProcessId")?.value||"";const processes=state.processes.slice().sort((a,b)=>a.name.localeCompare(b.name));sel.innerHTML='<option value="">New Process</option>'+processes.map(p=>`<option value="${p.id}">${escapeHtml(p.name)} • ${isAutomatedProcess(p)?"AUTOMATED":"MANUAL"}</option>`).join("");sel.value=state.processes.some(p=>p.id===current)?current:"";return sel.value}
 function loadProcessFromSelect(){const id=$("processSelect").value;if(!id){hideProcessForm();return}const p=state.processes.find(x=>x.id===id);if(!p){alert("That process is not available in the saved list yet. Refreshing the process dropdown.");populateProcessSelect("");return}showProcessForm(p);populateProcessSelect(id)}
 function processFormData(){return{id:$("editingProcessId").value,processType:$("processType").value,name:normalizeProcessName($("processName").value),workers:Number($("workers").value)||0,parallelCount:Math.max(1,Number($("parallelCount").value)||1),description:$("processDescription").value.trim(),autoUnits:Number($("autoUnits").value)||0,autoTimeValue:Number($("autoTimeValue").value)||0,autoTimeUnit:$("autoTimeUnit").value||"minutes"}}
-function saveProcessFromForm(){
-  if(processSaveInProgress)return;
-  processSaveInProgress=true;
-  const saveBtn=$("saveProcessBtn");
-  if(saveBtn)saveBtn.disabled=true;
-  try{
-    let data=processFormData();
-    data.name=normalizeProcessName(data.name);
-    $("processName").value=data.name;
-    const existingForId=data.id?state.processes.find(p=>p.id===data.id):null;
-    if(data.id&&!existingForId){data.id="";$("editingProcessId").value=""}
-    if(!data.name){alert("Please enter a process name.");return}
-    state.processes=dedupeProcessesByName(state.processes);
-    const duplicate=state.processes.find(p=>p.id!==data.id&&normalizeProcessName(p.name)===data.name);
-    if(duplicate){alert(`A process named "${data.name}" already exists. Process names must be unique.`);populateProcessSelect(duplicate.id);showProcessForm(duplicate);return}
-    const isAuto=data.processType==="automated",autoSeconds=automatedCycleSeconds(data);
-    if(isAuto&&autoSeconds<=0){alert("Enter automated production units and production time greater than 0 before saving.");return}
-    if(isAuto&&!confirm(`Verify automated set speed for ${data.name}:\n\n${data.autoUnits} units per ${data.autoTimeValue} ${data.autoTimeUnit}\nEquivalent cycle time: ${secondsToHMS(autoSeconds)} per unit.\n\nSave this automated process?`))return;
-    const isNew=!data.id;
-    let savedId=data.id||uid();
-    let savedProcess;
-    if(isNew){
-      savedProcess={...data,id:savedId,createdAt:Date.now(),cycles:[],sessions:[]};
-      state.processes.push(savedProcess);
-    }else{
-      savedProcess=state.processes.find(x=>x.id===savedId);
-      if(!savedProcess){alert("This process cannot be saved because it is no longer in the process list. Choose New Process and save again.");$("editingProcessId").value="";populateProcessSelect("");return}
-      Object.assign(savedProcess,{...data,id:savedId});
-    }
-    state.processes=dedupeProcessesByName(state.processes);
-    savedProcess=state.processes.find(x=>x.id===savedId)||state.processes.find(x=>normalizeProcessName(x.name)===data.name);
-    if(!savedProcess){alert("This process cannot be saved. Please try again after refreshing the process list.");populateProcessSelect("");return}
-    savedId=savedProcess.id;
-    saveState("process saved");
-    $("editingProcessId").value=savedId;
-    populateProcessSelect(savedId);
-    renderDashboard();
-    if(!isAuto&&isNew){
-      showCapture(savedId);
-      return;
-    }
-    showProcessForm(savedProcess);
-    populateProcessSelect(savedId);
-    if(isAuto)alert(`Automated process ${savedProcess.name} saved. Please verify the set-speed line on the dashboard chart and throughput estimate.`);
-  }finally{
-    processSaveInProgress=false;
-    if(saveBtn)saveBtn.disabled=false;
-  }
-}
+function saveProcessFromForm(){let data=processFormData();if(data.id&&!state.processes.some(p=>p.id===data.id)){data.id="";$('editingProcessId').value=""}if(!data.name){alert("Please enter a process name.");return}const duplicate=state.processes.find(p=>p.id!==data.id&&normalizeProcessName(p.name)===data.name);if(duplicate){alert(`A process named "${data.name}" already exists. Process names must be unique.`);populateProcessSelect(data.id||"");return}const isAuto=data.processType==="automated",autoSeconds=automatedCycleSeconds(data);if(isAuto&&autoSeconds<=0){alert("Enter automated production units and production time greater than 0 before saving.");return}if(isAuto&&!confirm(`Verify automated set speed for ${data.name}:
+
+${data.autoUnits} units per ${data.autoTimeValue} ${data.autoTimeUnit}
+Equivalent cycle time: ${secondsToHMS(autoSeconds)} per unit.
+
+Save this automated process?`))return;const isNew=!data.id;let savedId=data.id;if(savedId){const p=state.processes.find(x=>x.id===savedId);if(p)Object.assign(p,data);else{savedId=uid();state.processes.push({id:savedId,...data,createdAt:Date.now(),cycles:[],sessions:[]})}}else{savedId=uid();state.processes.push({id:savedId,...data,createdAt:Date.now(),cycles:[],sessions:[]})}saveState("process saved");const savedProcess=state.processes.find(x=>x.id===savedId);if(!savedProcess){alert("The process could not be saved. Please try again.");populateProcessSelect("");return}$('editingProcessId').value=savedId;populateProcessSelect(savedId);renderDashboard();if(!isAuto&&isNew){setTimeout(()=>showCapture(savedId),0);return}showProcessForm(savedProcess);populateProcessSelect(savedId);if(isAuto)alert(`Automated process ${savedProcess.name} saved. Please verify the set-speed line on the dashboard chart and throughput estimate.`)}
 function deleteProcess(id){const p=state.processes.find(x=>x.id===id);if(!p)return;if(!confirm(`Delete process "${p.name}" and all captured cycles/sessions?`))return;state.processes=state.processes.filter(x=>x.id!==id);saveState("process deleted");if($("editingProcessId")?.value===id)hideProcessForm();populateProcessSelect("");renderDashboard()}
 function populateStudyInfoForm(){const i=state.studyInfo||{};$("studyTitle").value=i.title||"";$("studyObserver").value=i.observer||"";$("studyDate").value=i.date||"";$("studyShift").value=i.shift||"";$("studyLocation").value=i.location||"";$("studyLine").value=i.line||"";$("studyPart").value=i.part||"";$("studyNotes").value=i.notes||""}
 function saveStudyInfoFromForm(){state.studyInfo={title:$("studyTitle").value.trim(),observer:$("studyObserver").value.trim(),date:$("studyDate").value,shift:$("studyShift").value.trim(),location:$("studyLocation").value.trim(),line:$("studyLine").value.trim(),part:$("studyPart").value.trim(),notes:$("studyNotes").value.trim()};saveState("study info saved");renderDashboard();alert("Study information saved.")}
